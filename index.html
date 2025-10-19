@@ -5,12 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AR Tetris</title>
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
     <style>
         body {
             margin: 0;
             font-family: Arial, sans-serif;
             background: #000;
+            overflow: hidden;
         }
         
         #ui {
@@ -49,132 +49,80 @@
             justify-content: center;
         }
         
-        #permissionModal {
+        #startOverlay {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.9);
-            z-index: 1000;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            z-index: 999;
             display: flex;
             align-items: center;
             justify-content: center;
             flex-direction: column;
             color: white;
             text-align: center;
+            padding: 20px;
+            box-sizing: border-box;
         }
         
-        #permissionContent {
-            background: rgba(255,255,255,0.1);
-            padding: 30px;
-            border-radius: 15px;
-            max-width: 350px;
-            margin: 20px;
+        #startOverlay h1 {
+            font-size: 48px;
+            margin: 20px 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
         
-        #permissionContent h2 {
-            margin-top: 0;
-            color: #4CAF50;
+        #startOverlay p {
+            font-size: 18px;
+            margin: 10px 0;
+            max-width: 400px;
         }
         
-        #enableCameraBtn {
+        #startBtn {
             background: #4CAF50;
             color: white;
             border: none;
-            padding: 15px 30px;
-            font-size: 18px;
-            border-radius: 25px;
+            padding: 20px 40px;
+            font-size: 20px;
+            border-radius: 50px;
             cursor: pointer;
-            margin: 10px;
-            min-width: 200px;
+            margin-top: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            transition: all 0.3s;
         }
         
-        #enableCameraBtn:hover {
-            background: #45a049;
+        #startBtn:active {
+            transform: scale(0.95);
         }
         
-        #startGameBtn {
-            background: #2196F3;
-            color: white;
-            border: none;
-            padding: 15px 30px;
-            font-size: 18px;
-            border-radius: 25px;
-            cursor: pointer;
-            margin: 10px;
-            min-width: 200px;
-            display: none;
-        }
-        
-        #startGameBtn:hover {
-            background: #1976D2;
-        }
-        
-        .status-message {
-            margin: 15px 0;
-            padding: 10px;
-            border-radius: 5px;
-        }
-        
-        .success {
-            background: rgba(76, 175, 80, 0.2);
-            color: #4CAF50;
-        }
-        
-        .error {
-            background: rgba(244, 67, 54, 0.2);
-            color: #f44336;
-        }
-        
-        .camera-icon {
-            font-size: 48px;
+        .emoji {
+            font-size: 64px;
             margin-bottom: 20px;
         }
         
-        #loadingSpinner {
-            display: none;
-            margin: 20px 0;
+        #statusText {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            min-height: 24px;
         }
         
-        .spinner {
-            border: 3px solid rgba(255,255,255,0.3);
-            border-radius: 50%;
-            border-top: 3px solid #4CAF50;
-            width: 30px;
-            height: 30px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        .hidden {
+            display: none !important;
         }
     </style>
 </head>
 <body>
-    <!-- Permission Modal -->
-    <div id="permissionModal">
-        <div id="permissionContent">
-            <div class="camera-icon">📹</div>
-            <h2>AR Tetris</h2>
-            <p>To play AR Tetris, we need access to your camera to create the augmented reality experience.</p>
-            
-            <div id="statusMessage" class="status-message" style="display: none;"></div>
-            
-            <div id="loadingSpinner">
-                <div class="spinner"></div>
-                <p>Accessing camera...</p>
-            </div>
-            
-            <button id="enableCameraBtn">📷 Enable Camera</button>
-            <button id="startGameBtn">🎮 Start AR Tetris</button>
-            
-            <p style="font-size: 12px; margin-top: 20px; opacity: 0.7;">
-                Your camera data stays on your device and is not recorded or shared.
-            </p>
-        </div>
+    <!-- Start Overlay -->
+    <div id="startOverlay">
+        <div class="emoji">🎮</div>
+        <h1>AR Tetris</h1>
+        <p>Experience Tetris in Augmented Reality!</p>
+        <p style="font-size: 14px; opacity: 0.8;">When you tap start, your browser will ask for camera permission. Please tap "Allow".</p>
+        <button id="startBtn">▶ Start Game</button>
+        <div id="statusText"></div>
     </div>
 
     <!-- Game UI -->
@@ -199,24 +147,12 @@
         arjs="sourceType: webcam; displayWidth: 1280; displayHeight: 960; debugUIEnabled: false;"
         vr-mode-ui="enabled: false"
         renderer="logarithmicDepthBuffer: true; colorManagement: true;"
-        webxr="requiredFeatures: hit-test,local-floor;"
         background="color: transparent"
         style="display: none;">
         
-        <!-- Assets -->
-        <a-assets>
-            <a-mixin id="piece-I" material="color: #00FFFF"></a-mixin>
-            <a-mixin id="piece-O" material="color: #FFFF00"></a-mixin>
-            <a-mixin id="piece-T" material="color: #800080"></a-mixin>
-            <a-mixin id="piece-S" material="color: #00FF00"></a-mixin>
-            <a-mixin id="piece-Z" material="color: #FF0000"></a-mixin>
-            <a-mixin id="piece-J" material="color: #0000FF"></a-mixin>
-            <a-mixin id="piece-L" material="color: #FFA500"></a-mixin>
-        </a-assets>
-
         <!-- Lighting -->
-        <a-light type="ambient" color="#404040"></a-light>
-        <a-light type="directional" position="1 1 1" light="color: #FFFFFF; intensity: 0.5"></a-light>
+        <a-light type="ambient" color="#BBB"></a-light>
+        <a-light type="directional" position="1 1 1" light="color: #FFF; intensity: 0.5"></a-light>
 
         <!-- Camera -->
         <a-camera 
@@ -248,105 +184,6 @@
     </a-scene>
 
     <script>
-        class CameraPermissionManager {
-            constructor() {
-                this.cameraEnabled = false;
-                this.stream = null;
-                this.init();
-            }
-            
-            init() {
-                this.setupEventListeners();
-            }
-            
-            setupEventListeners() {
-                document.getElementById('enableCameraBtn').addEventListener('click', () => {
-                    this.requestCameraPermission();
-                });
-                
-                document.getElementById('startGameBtn').addEventListener('click', () => {
-                    this.startARGame();
-                });
-            }
-            
-            showMessage(message, type = 'info') {
-                const statusEl = document.getElementById('statusMessage');
-                statusEl.textContent = message;
-                statusEl.className = `status-message ${type}`;
-                statusEl.style.display = 'block';
-            }
-            
-            showLoading(show = true) {
-                document.getElementById('loadingSpinner').style.display = show ? 'block' : 'none';
-                document.getElementById('enableCameraBtn').style.display = show ? 'none' : 'inline-block';
-            }
-            
-            async requestCameraPermission() {
-                try {
-                    this.showLoading(true);
-                    this.showMessage('Requesting camera access...', 'info');
-                    
-                    // Request camera permission
-                    this.stream = await navigator.mediaDevices.getUserMedia({
-                        video: {
-                            facingMode: 'environment', // Use back camera
-                            width: { ideal: 1280 },
-                            height: { ideal: 720 }
-                        }
-                    });
-                    
-                    this.showLoading(false);
-                    this.showMessage('✅ Camera access granted! You can now start the AR game.', 'success');
-                    
-                    // Hide enable button, show start game button
-                    document.getElementById('enableCameraBtn').style.display = 'none';
-                    document.getElementById('startGameBtn').style.display = 'inline-block';
-                    
-                    this.cameraEnabled = true;
-                    
-                } catch (error) {
-                    this.showLoading(false);
-                    
-                    let errorMessage = '';
-                    
-                    if (error.name === 'NotAllowedError') {
-                        errorMessage = '❌ Camera access denied. Please allow camera access and try again.';
-                    } else if (error.name === 'NotFoundError') {
-                        errorMessage = '❌ No camera found on this device.';
-                    } else if (error.name === 'NotSupportedError') {
-                        errorMessage = '❌ Camera not supported on this browser.';
-                    } else {
-                        errorMessage = `❌ Error accessing camera: ${error.message}`;
-                    }
-                    
-                    this.showMessage(errorMessage, 'error');
-                    
-                    // Show instructions for manual permission
-                    setTimeout(() => {
-                        this.showMessage('💡 Try refreshing the page and clicking "Allow" when prompted for camera access.', 'info');
-                    }, 3000);
-                }
-            }
-            
-            startARGame() {
-                if (!this.cameraEnabled) {
-                    this.showMessage('❌ Please enable camera access first.', 'error');
-                    return;
-                }
-                
-                // Hide permission modal
-                document.getElementById('permissionModal').style.display = 'none';
-                
-                // Show game elements
-                document.getElementById('scene').style.display = 'block';
-                document.getElementById('ui').style.display = 'block';
-                document.getElementById('controls').style.display = 'flex';
-                
-                // Initialize Tetris game
-                window.tetrisGame = new ARTetris();
-            }
-        }
-
         class ARTetris {
             constructor() {
                 this.board = Array(20).fill().map(() => Array(10).fill(0));
@@ -385,12 +222,13 @@
             
             init() {
                 this.setupEventListeners();
-                setTimeout(() => {
-                    this.startGame();
-                }, 1000); // Give A-Frame time to initialize
             }
             
             setupEventListeners() {
+                document.getElementById('startBtn').addEventListener('click', () => {
+                    this.requestCamera();
+                });
+                
                 document.getElementById('leftBtn').addEventListener('click', () => {
                     this.moveLeft();
                 });
@@ -407,7 +245,7 @@
                     this.rotate();
                 });
                 
-                // Keyboard controls for desktop testing
+                // Keyboard controls
                 document.addEventListener('keydown', (e) => {
                     if (!this.gameRunning) return;
                     
@@ -426,6 +264,60 @@
                             break;
                     }
                 });
+            }
+            
+            async requestCamera() {
+                const statusText = document.getElementById('statusText');
+                const startBtn = document.getElementById('startBtn');
+                
+                try {
+                    statusText.textContent = 'Requesting camera access...';
+                    startBtn.disabled = true;
+                    
+                    // Request camera permission
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            facingMode: 'environment',
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 }
+                        }
+                    });
+                    
+                    // Success!
+                    statusText.textContent = '✅ Camera access granted! Starting game...';
+                    
+                    // Start game after short delay
+                    setTimeout(() => {
+                        document.getElementById('startOverlay').classList.add('hidden');
+                        document.getElementById('scene').style.display = 'block';
+                        document.getElementById('ui').style.display = 'block';
+                        document.getElementById('controls').style.display = 'flex';
+                        
+                        // Start the game
+                        setTimeout(() => {
+                            this.startGame();
+                        }, 500);
+                    }, 1000);
+                    
+                } catch (error) {
+                    startBtn.disabled = false;
+                    
+                    let errorMsg = '';
+                    if (error.name === 'NotAllowedError') {
+                        errorMsg = '❌ Camera permission denied. Please allow camera access and try again.';
+                    } else if (error.name === 'NotFoundError') {
+                        errorMsg = '❌ No camera found on this device.';
+                    } else {
+                        errorMsg = `❌ Error: ${error.message}`;
+                    }
+                    
+                    statusText.textContent = errorMsg;
+                    
+                    // Add retry instructions
+                    setTimeout(() => {
+                        statusText.innerHTML = errorMsg + '<br><br>💡 Tip: Check your browser settings and make sure no other app is using the camera.';
+                    }, 2000);
+                }
             }
             
             startGame() {
@@ -507,7 +399,7 @@
                         this.board.splice(y, 1);
                         this.board.unshift(Array(10).fill(0));
                         linesCleared++;
-                        y++; // Check the same line again
+                        y++;
                     }
                 }
                 
@@ -634,8 +526,7 @@
                 this.gameRunning = false;
                 
                 setTimeout(() => {
-                    if (confirm(`Game Over! Final Score: ${this.score}\n\nWould you like to play again?`)) {
-                        // Reset game
+                    if (confirm(`Game Over! Final Score: ${this.score}\n\nPlay again?`)) {
                         this.board = Array(20).fill().map(() => Array(10).fill(0));
                         this.score = 0;
                         this.level = 1;
@@ -644,7 +535,6 @@
                         this.renderBoard();
                         document.getElementById('currentPiece').innerHTML = '';
                         
-                        // Restart game
                         setTimeout(() => {
                             this.startGame();
                         }, 1000);
@@ -653,9 +543,9 @@
             }
         }
         
-        // Initialize camera permission manager when page loads
+        // Initialize when page loads
         window.addEventListener('load', () => {
-            new CameraPermissionManager();
+            window.tetrisGame = new ARTetris();
         });
     </script>
 </body>
