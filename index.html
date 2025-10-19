@@ -2,21 +2,29 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AR Tetris - Touch Control</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, minimum-scale=1.0, viewport-fit=cover">
+    <title>AR Tetris - 3D Enhanced</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
         }
         
-        body {
+        html, body {
             font-family: Arial, sans-serif;
             overflow: hidden;
             background: #000;
-            -webkit-user-select: none;
-            user-select: none;
+            height: 100%;
+            width: 100%;
+            position: fixed;
+            touch-action: manipulation;
         }
         
         #canvas {
@@ -59,46 +67,49 @@
         
         .touch-indicator {
             position: absolute;
-            background: rgba(255, 255, 255, 0.2);
-            border: 2px solid rgba(255, 255, 255, 0.4);
-            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.15);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 15px;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 48px;
             color: white;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
             pointer-events: none;
             opacity: 0;
-            transition: opacity 0.2s;
+            transition: opacity 0.15s ease;
+            backdrop-filter: blur(5px);
         }
         
         .touch-indicator.active {
-            opacity: 1;
+            opacity: 0.8;
+            transform: scale(1.1);
         }
         
         #leftZone {
-            left: 0;
-            top: 0;
+            left: 10px;
+            top: 20%;
             width: 35%;
-            height: 100%;
+            height: 60%;
         }
         
         #rightZone {
-            right: 0;
-            top: 0;
+            right: 10px;
+            top: 20%;
             width: 35%;
-            height: 100%;
+            height: 60%;
         }
         
         #rotateIndicator {
             left: 50%;
             top: 50%;
             transform: translate(-50%, -50%);
-            width: 120px;
-            height: 120px;
+            width: 100px;
+            height: 100px;
             border-radius: 50%;
-            background: rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.2);
+            font-size: 40px;
         }
         
         #startOverlay {
@@ -141,6 +152,7 @@
             cursor: pointer;
             margin-top: 30px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            touch-action: manipulation;
         }
         
         #startBtn:active {
@@ -204,15 +216,16 @@
             bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.9);
             color: white;
-            padding: 15px 25px;
-            border-radius: 25px;
+            padding: 20px 25px;
+            border-radius: 20px;
             font-size: 14px;
             z-index: 100;
             display: none;
             text-align: center;
             pointer-events: none;
+            border: 2px solid rgba(255,255,255,0.2);
         }
         
         #controlsHelp.show {
@@ -232,7 +245,20 @@
         }
         
         .control-hint {
-            margin: 5px 0;
+            margin: 8px 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 5px 0;
+        }
+        
+        .control-emoji {
+            font-size: 18px;
+            margin-right: 10px;
+        }
+        
+        input, textarea, select {
+            font-size: 16px;
         }
     </style>
 </head>
@@ -240,7 +266,7 @@
     <!-- Start Overlay -->
     <div id="startOverlay">
         <div class="emoji">🎮</div>
-        <h1>AR Tetris</h1>
+        <h1>AR Tetris 3D</h1>
         <p><strong>True 3D Augmented Reality!</strong></p>
         <p style="font-size: 14px; opacity: 0.9;">
             Point your camera at a flat surface and tap to place the game in your real world!
@@ -279,10 +305,23 @@
 
     <!-- Controls Help -->
     <div id="controlsHelp">
-        <div class="control-hint">👆 Tap <strong>LEFT</strong> side = Move left</div>
-        <div class="control-hint">👆 Tap <strong>RIGHT</strong> side = Move right</div>
-        <div class="control-hint">👆👆 <strong>Double-tap</strong> = Rotate</div>
-        <div class="control-hint">👇 <strong>Swipe down</strong> = Drop faster</div>
+        <div style="font-weight: bold; margin-bottom: 10px; color: #4CAF50;">🎮 Game Controls</div>
+        <div class="control-hint">
+            <span><span class="control-emoji">👈</span>Tap LEFT side</span>
+            <span><strong>Move Left</strong></span>
+        </div>
+        <div class="control-hint">
+            <span><span class="control-emoji">👉</span>Tap RIGHT side</span>
+            <span><strong>Move Right</strong></span>
+        </div>
+        <div class="control-hint">
+            <span><span class="control-emoji">👆👆</span>Double-tap</span>
+            <span><strong>Rotate Piece</strong></span>
+        </div>
+        <div class="control-hint">
+            <span><span class="control-emoji">👇</span>Swipe down</span>
+            <span><strong>Drop Faster</strong></span>
+        </div>
     </div>
 
     <script type="module">
@@ -313,9 +352,12 @@
                 
                 // Touch control variables
                 this.lastTapTime = 0;
-                this.doubleTapDelay = 300; // ms
+                this.doubleTapDelay = 400;
                 this.touchStartY = 0;
-                this.swipeThreshold = 50;
+                this.touchStartX = 0;
+                this.swipeThreshold = 30;
+                this.tapThreshold = 10;
+                this.touchMoved = false;
                 
                 this.pieces = {
                     I: { shape: [[1,1,1,1]], color: [0, 1, 1, 1] },
@@ -334,6 +376,28 @@
                 this.setupCanvas();
                 this.setupEventListeners();
                 this.setupWebGL();
+                this.preventZoom();
+            }
+            
+            preventZoom() {
+                document.addEventListener('touchmove', (e) => {
+                    if (e.touches.length > 1) {
+                        e.preventDefault();
+                    }
+                }, { passive: false });
+                
+                document.addEventListener('touchend', (e) => {
+                    const now = Date.now();
+                    const timeSince = now - this.lastTouchEnd;
+                    if (timeSince < 300 && timeSince > 0) {
+                        e.preventDefault();
+                    }
+                    this.lastTouchEnd = now;
+                }, false);
+                
+                document.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                });
             }
             
             setupCanvas() {
@@ -344,25 +408,56 @@
             setupWebGL() {
                 const gl = this.gl;
                 
-                // Vertex shader
+                // 🎨 UPGRADED VERTEX SHADER - Now with normals for lighting!
                 const vertexShaderSource = `
                     attribute vec3 position;
+                    attribute vec3 normal;
+                    
                     uniform mat4 projectionMatrix;
                     uniform mat4 viewMatrix;
                     uniform mat4 modelMatrix;
+                    uniform mat4 normalMatrix;
+                    
+                    varying vec3 vNormal;
+                    varying vec3 vPosition;
                     
                     void main() {
-                        gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0);
+                        vNormal = normalize((normalMatrix * vec4(normal, 0.0)).xyz);
+                        vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+                        vPosition = worldPosition.xyz;
+                        gl_Position = projectionMatrix * viewMatrix * worldPosition;
                     }
                 `;
                 
-                // Fragment shader
+                // 💡 UPGRADED FRAGMENT SHADER - Phong lighting!
                 const fragmentShaderSource = `
                     precision mediump float;
+                    
                     uniform vec4 color;
+                    uniform vec3 lightPosition;
+                    uniform vec3 viewPosition;
+                    
+                    varying vec3 vNormal;
+                    varying vec3 vPosition;
                     
                     void main() {
-                        gl_FragColor = color;
+                        // Ambient lighting
+                        vec3 ambient = 0.3 * color.rgb;
+                        
+                        // Diffuse lighting
+                        vec3 lightDir = normalize(lightPosition - vPosition);
+                        float diff = max(dot(vNormal, lightDir), 0.0);
+                        vec3 diffuse = 0.6 * diff * color.rgb;
+                        
+                        // Specular lighting
+                        vec3 viewDir = normalize(viewPosition - vPosition);
+                        vec3 reflectDir = reflect(-lightDir, vNormal);
+                        float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32.0);
+                        vec3 specular = 0.3 * spec * vec3(1.0, 1.0, 1.0);
+                        
+                        // Combine all lighting
+                        vec3 result = ambient + diffuse + specular;
+                        gl_FragColor = vec4(result, color.a);
                     }
                 `;
                 
@@ -384,12 +479,16 @@
                 
                 // Get attribute and uniform locations
                 this.positionLocation = gl.getAttribLocation(this.program, 'position');
+                this.normalLocation = gl.getAttribLocation(this.program, 'normal');
                 this.projectionMatrixLocation = gl.getUniformLocation(this.program, 'projectionMatrix');
                 this.viewMatrixLocation = gl.getUniformLocation(this.program, 'viewMatrix');
                 this.modelMatrixLocation = gl.getUniformLocation(this.program, 'modelMatrix');
+                this.normalMatrixLocation = gl.getUniformLocation(this.program, 'normalMatrix');
                 this.colorLocation = gl.getUniformLocation(this.program, 'color');
+                this.lightPositionLocation = gl.getUniformLocation(this.program, 'lightPosition');
+                this.viewPositionLocation = gl.getUniformLocation(this.program, 'viewPosition');
                 
-                // Create cube vertices
+                // Create cube with normals
                 this.createCubeBuffer();
                 
                 gl.enable(gl.DEPTH_TEST);
@@ -398,19 +497,43 @@
             createCubeBuffer() {
                 const gl = this.gl;
                 
+                // Vertices with normals for each face
                 const vertices = new Float32Array([
-                    // Front face
-                    -0.5, -0.5,  0.5,  0.5, -0.5,  0.5,  0.5,  0.5,  0.5, -0.5,  0.5,  0.5,
-                    // Back face
-                    -0.5, -0.5, -0.5, -0.5,  0.5, -0.5,  0.5,  0.5, -0.5,  0.5, -0.5, -0.5,
-                    // Top face
-                    -0.5,  0.5, -0.5, -0.5,  0.5,  0.5,  0.5,  0.5,  0.5,  0.5,  0.5, -0.5,
-                    // Bottom face
-                    -0.5, -0.5, -0.5,  0.5, -0.5, -0.5,  0.5, -0.5,  0.5, -0.5, -0.5,  0.5,
-                    // Right face
-                     0.5, -0.5, -0.5,  0.5,  0.5, -0.5,  0.5,  0.5,  0.5,  0.5, -0.5,  0.5,
-                    // Left face
-                    -0.5, -0.5, -0.5, -0.5, -0.5,  0.5, -0.5,  0.5,  0.5, -0.5,  0.5, -0.5,
+                    // Front face (z = 0.5)
+                    -0.5, -0.5,  0.5,   0, 0, 1,
+                     0.5, -0.5,  0.5,   0, 0, 1,
+                     0.5,  0.5,  0.5,   0, 0, 1,
+                    -0.5,  0.5,  0.5,   0, 0, 1,
+                    
+                    // Back face (z = -0.5)
+                    -0.5, -0.5, -0.5,   0, 0, -1,
+                    -0.5,  0.5, -0.5,   0, 0, -1,
+                     0.5,  0.5, -0.5,   0, 0, -1,
+                     0.5, -0.5, -0.5,   0, 0, -1,
+                    
+                    // Top face (y = 0.5)
+                    -0.5,  0.5, -0.5,   0, 1, 0,
+                    -0.5,  0.5,  0.5,   0, 1, 0,
+                     0.5,  0.5,  0.5,   0, 1, 0,
+                     0.5,  0.5, -0.5,   0, 1, 0,
+                    
+                    // Bottom face (y = -0.5)
+                    -0.5, -0.5, -0.5,   0, -1, 0,
+                     0.5, -0.5, -0.5,   0, -1, 0,
+                     0.5, -0.5,  0.5,   0, -1, 0,
+                    -0.5, -0.5,  0.5,   0, -1, 0,
+                    
+                    // Right face (x = 0.5)
+                     0.5, -0.5, -0.5,   1, 0, 0,
+                     0.5,  0.5, -0.5,   1, 0, 0,
+                     0.5,  0.5,  0.5,   1, 0, 0,
+                     0.5, -0.5,  0.5,   1, 0, 0,
+                    
+                    // Left face (x = -0.5)
+                    -0.5, -0.5, -0.5,   -1, 0, 0,
+                    -0.5, -0.5,  0.5,   -1, 0, 0,
+                    -0.5,  0.5,  0.5,   -1, 0, 0,
+                    -0.5,  0.5, -0.5,   -1, 0, 0
                 ]);
                 
                 const indices = new Uint16Array([
@@ -438,19 +561,18 @@
                     this.startAR();
                 });
                 
-                // Touch controls for gameplay
-                this.canvas.addEventListener('touchstart', (e) => this.handleTouchStart(e));
-                this.canvas.addEventListener('touchmove', (e) => this.handleTouchMove(e));
-                this.canvas.addEventListener('touchend', (e) => this.handleTouchEnd(e));
+                this.canvas.addEventListener('touchstart', (e) => this.handleTouchStart(e), { passive: false });
+                this.canvas.addEventListener('touchmove', (e) => this.handleTouchMove(e), { passive: false });
+                this.canvas.addEventListener('touchend', (e) => this.handleTouchEnd(e), { passive: false });
                 
-                // Mouse controls for testing on desktop
-                this.canvas.addEventListener('click', (e) => this.handleClick(e));
+                this.canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
+                this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+                this.canvas.addEventListener('mouseup', (e) => this.handleMouseUp(e));
             }
             
             handleTouchStart(e) {
                 e.preventDefault();
                 
-                // For game placement
                 if (this.xrSession && !this.gamePlaced) {
                     this.placeGame = true;
                     return;
@@ -460,7 +582,9 @@
                 
                 const touch = e.touches[0];
                 this.touchStartY = touch.clientY;
+                this.touchStartX = touch.clientX;
                 this.touchStartTime = Date.now();
+                this.touchMoved = false;
             }
             
             handleTouchMove(e) {
@@ -469,12 +593,18 @@
                 if (!this.gameRunning) return;
                 
                 const touch = e.touches[0];
-                const deltaY = touch.clientY - this.touchStartY;
+                const deltaY = Math.abs(touch.clientY - this.touchStartY);
+                const deltaX = Math.abs(touch.clientX - this.touchStartX);
                 
-                // Swipe down detection
-                if (deltaY > this.swipeThreshold) {
+                if (deltaY > this.tapThreshold || deltaX > this.tapThreshold) {
+                    this.touchMoved = true;
+                }
+                
+                const actualDeltaY = touch.clientY - this.touchStartY;
+                if (actualDeltaY > this.swipeThreshold && !this.touchMoved) {
                     this.moveDown();
-                    this.touchStartY = touch.clientY; // Reset for continuous swipe
+                    this.touchStartY = touch.clientY;
+                    this.touchMoved = true;
                 }
             }
             
@@ -486,41 +616,32 @@
                 const touch = e.changedTouches[0];
                 const touchDuration = Date.now() - this.touchStartTime;
                 
-                // Ignore long touches (likely swipes)
-                if (touchDuration > 500) return;
+                if (this.touchMoved || touchDuration > 600) return;
                 
                 const x = touch.clientX;
                 const screenWidth = window.innerWidth;
                 
-                // Check for double-tap (rotate)
                 const currentTime = Date.now();
                 const timeSinceLastTap = currentTime - this.lastTapTime;
                 
-                if (timeSinceLastTap < this.doubleTapDelay) {
-                    // Double tap detected - rotate
+                if (timeSinceLastTap < this.doubleTapDelay && timeSinceLastTap > 50) {
                     this.rotate();
                     this.showRotateIndicator();
-                    this.lastTapTime = 0; // Reset to avoid triple-tap
+                    this.lastTapTime = 0;
                 } else {
-                    // Single tap - move left or right
-                    if (x < screenWidth * 0.4) {
-                        // Left side tap
+                    if (x < screenWidth * 0.5) {
                         this.moveLeft();
                         this.showLeftIndicator();
-                    } else if (x > screenWidth * 0.6) {
-                        // Right side tap
+                    } else {
                         this.moveRight();
                         this.showRightIndicator();
-                    } else {
-                        // Middle area - could be first tap of double-tap
                     }
                     
                     this.lastTapTime = currentTime;
                 }
             }
             
-            handleClick(e) {
-                // For desktop testing and game placement
+            handleMouseDown(e) {
                 if (this.xrSession && !this.gamePlaced) {
                     this.placeGame = true;
                     return;
@@ -528,22 +649,35 @@
                 
                 if (!this.gameRunning) return;
                 
+                this.mouseStartX = e.clientX;
+                this.mouseDown = true;
+            }
+            
+            handleMouseMove(e) {
+                // Could add mouse drag functionality here
+            }
+            
+            handleMouseUp(e) {
+                if (!this.gameRunning || !this.gamePlaced || !this.mouseDown) return;
+                
+                this.mouseDown = false;
                 const x = e.clientX;
                 const screenWidth = window.innerWidth;
                 
-                if (x < screenWidth * 0.4) {
-                    this.moveLeft();
-                    this.showLeftIndicator();
-                } else if (x > screenWidth * 0.6) {
-                    this.moveRight();
-                    this.showRightIndicator();
-                } else {
-                    this.rotate();
-                    this.showRotateIndicator();
+                if (Math.abs(x - this.mouseStartX) < 10) {
+                    if (x < screenWidth * 0.33) {
+                        this.moveLeft();
+                        this.showLeftIndicator();
+                    } else if (x > screenWidth * 0.66) {
+                        this.moveRight();
+                        this.showRightIndicator();
+                    } else {
+                        this.rotate();
+                        this.showRotateIndicator();
+                    }
                 }
             }
             
-            // Visual feedback for touch controls
             showLeftIndicator() {
                 const indicator = document.getElementById('leftZone');
                 indicator.classList.add('active');
@@ -614,7 +748,6 @@
                 const viewerSpace = await this.xrSession.requestReferenceSpace('viewer');
                 this.hitTestSource = await this.xrSession.requestHitTestSource({ space: viewerSpace });
                 
-                // Hide overlay and show instructions
                 document.getElementById('startOverlay').classList.add('hidden');
                 document.getElementById('instructions').style.display = 'block';
                 
@@ -650,7 +783,6 @@
                         const viewport = layer.getViewport(view);
                         gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
                         
-                        // Handle hit test for placing game
                         if (this.hitTestSource && this.placeGame && !this.gamePlaced) {
                             const hitTestResults = frame.getHitTestResults(this.hitTestSource);
                             if (hitTestResults.length > 0) {
@@ -664,25 +796,22 @@
                                 document.getElementById('ui').style.display = 'block';
                                 document.getElementById('touchZones').style.display = 'block';
                                 
-                                // Show controls help for 5 seconds
                                 const controlsHelp = document.getElementById('controlsHelp');
                                 controlsHelp.classList.add('show');
                                 setTimeout(() => {
                                     controlsHelp.classList.remove('show');
-                                }, 5000);
+                                }, 7000);
                                 
                                 this.startGame();
                             }
                         }
                         
-                        // Render game if placed
                         if (this.gamePlaced && this.gameAnchor) {
-                            this.renderGame(view.projectionMatrix, view.transform.inverse.matrix);
+                            this.renderGame(view.projectionMatrix, view.transform.inverse.matrix, pose.transform.position);
                         }
                     }
                 }
                 
-                // Update game logic
                 if (this.gameRunning) {
                     const currentTime = Date.now();
                     if (currentTime - this.lastTime > this.dropTime) {
@@ -692,25 +821,35 @@
                 }
             }
             
-            renderGame(projectionMatrix, viewMatrix) {
+            renderGame(projectionMatrix, viewMatrix, viewPosition) {
                 const gl = this.gl;
                 gl.useProgram(this.program);
                 
                 gl.uniformMatrix4fv(this.projectionMatrixLocation, false, projectionMatrix);
                 gl.uniformMatrix4fv(this.viewMatrixLocation, false, viewMatrix);
                 
+                // 💡 Set light position (above and in front of board)
+                gl.uniform3fv(this.lightPositionLocation, [0, 0.5, 0.5]);
+                gl.uniform3fv(this.viewPositionLocation, viewPosition ? 
+                    [viewPosition.x, viewPosition.y, viewPosition.z] : [0, 0, 0]);
+                
                 gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
                 gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+                
+                const stride = 6 * 4; // 6 floats per vertex (3 position + 3 normal)
                 gl.enableVertexAttribArray(this.positionLocation);
-                gl.vertexAttribPointer(this.positionLocation, 3, gl.FLOAT, false, 0, 0);
+                gl.vertexAttribPointer(this.positionLocation, 3, gl.FLOAT, false, stride, 0);
+                gl.enableVertexAttribArray(this.normalLocation);
+                gl.vertexAttribPointer(this.normalLocation, 3, gl.FLOAT, false, stride, 3 * 4);
                 
-                const blockSize = 0.02; // 2cm blocks
+                // 🎯 THICC BLOCKS - 5cm instead of 2cm!
+                const blockSize = 0.05;
                 
-                // Draw board frame
+                // Draw board frame (thicker!)
                 this.drawCube(
                     [0, 0, 0],
-                    [blockSize * 10, blockSize * 20, blockSize * 0.1],
-                    [0.2, 0.2, 0.2, 0.3]
+                    [blockSize * 10, blockSize * 20, blockSize * 0.5], // Thicker background
+                    [0.15, 0.15, 0.15, 0.5]
                 );
                 
                 // Draw placed pieces
@@ -718,8 +857,8 @@
                     for (let x = 0; x < this.board[y].length; x++) {
                         if (this.board[y][x]) {
                             this.drawCube(
-                                [(x - 4.5) * blockSize, (19 - y) * blockSize - 0.19, 0],
-                                [blockSize * 0.95, blockSize * 0.95, blockSize * 0.95],
+                                [(x - 4.5) * blockSize, (19 - y) * blockSize - 0.475, blockSize * 0.25],
+                                [blockSize * 0.9, blockSize * 0.9, blockSize * 0.9], // Full 3D cubes!
                                 this.board[y][x]
                             );
                         }
@@ -733,8 +872,8 @@
                         for (let x = 0; x < shape[y].length; x++) {
                             if (shape[y][x]) {
                                 this.drawCube(
-                                    [(this.currentX + x - 4.5) * blockSize, (19 - (this.currentY + y)) * blockSize - 0.19, 0],
-                                    [blockSize * 0.95, blockSize * 0.95, blockSize * 0.95],
+                                    [(this.currentX + x - 4.5) * blockSize, (19 - (this.currentY + y)) * blockSize - 0.475, blockSize * 0.25],
+                                    [blockSize * 0.9, blockSize * 0.9, blockSize * 0.9],
                                     this.currentPiece.color
                                 );
                             }
@@ -749,10 +888,24 @@
                 const modelMatrix = new Float32Array(16);
                 this.mat4identity(modelMatrix);
                 this.mat4multiply(modelMatrix, this.gameAnchor, modelMatrix);
+                
+                // 🎯 TILT THE BOARD 25° backward for better viewing!
+                const tiltMatrix = new Float32Array(16);
+                this.mat4identity(tiltMatrix);
+                this.mat4rotateX(tiltMatrix, -0.436); // -25 degrees in radians
+                this.mat4multiply(modelMatrix, modelMatrix, tiltMatrix);
+                
                 this.mat4translate(modelMatrix, position[0], position[1], position[2]);
                 this.mat4scale(modelMatrix, scale[0], scale[1], scale[2]);
                 
+                // Calculate normal matrix (for proper lighting on rotated objects)
+                const normalMatrix = new Float32Array(16);
+                this.mat4copy(normalMatrix, modelMatrix);
+                this.mat4invert(normalMatrix);
+                this.mat4transpose(normalMatrix);
+                
                 gl.uniformMatrix4fv(this.modelMatrixLocation, false, modelMatrix);
+                gl.uniformMatrix4fv(this.normalMatrixLocation, false, normalMatrix);
                 gl.uniform4fv(this.colorLocation, color);
                 
                 gl.drawElements(gl.TRIANGLES, this.indexCount, gl.UNSIGNED_SHORT, 0);
@@ -810,7 +963,90 @@
                 out[8] *= z; out[9] *= z; out[10] *= z; out[11] *= z;
             }
             
-            // Game logic
+            // 🆕 NEW: Rotate around X axis
+            mat4rotateX(out, angle) {
+                const c = Math.cos(angle);
+                const s = Math.sin(angle);
+                const temp = new Float32Array(16);
+                this.mat4identity(temp);
+                temp[5] = c;
+                temp[6] = s;
+                temp[9] = -s;
+                temp[10] = c;
+                this.mat4multiply(out, out, temp);
+            }
+            
+            // 🆕 NEW: Matrix invert (for normal matrix)
+            mat4invert(out) {
+                const a00 = out[0], a01 = out[1], a02 = out[2], a03 = out[3];
+                const a10 = out[4], a11 = out[5], a12 = out[6], a13 = out[7];
+                const a20 = out[8], a21 = out[9], a22 = out[10], a23 = out[11];
+                const a30 = out[12], a31 = out[13], a32 = out[14], a33 = out[15];
+                
+                const b00 = a00 * a11 - a01 * a10;
+                const b01 = a00 * a12 - a02 * a10;
+                const b02 = a00 * a13 - a03 * a10;
+                const b03 = a01 * a12 - a02 * a11;
+                const b04 = a01 * a13 - a03 * a11;
+                const b05 = a02 * a13 - a03 * a12;
+                const b06 = a20 * a31 - a21 * a30;
+                const b07 = a20 * a32 - a22 * a30;
+                const b08 = a20 * a33 - a23 * a30;
+                const b09 = a21 * a32 - a22 * a31;
+                const b10 = a21 * a33 - a23 * a31;
+                const b11 = a22 * a33 - a23 * a32;
+                
+                let det = b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06;
+                if (!det) return;
+                det = 1.0 / det;
+                
+                out[0] = (a11 * b11 - a12 * b10 + a13 * b09) * det;
+                out[1] = (a02 * b10 - a01 * b11 - a03 * b09) * det;
+                out[2] = (a31 * b05 - a32 * b04 + a33 * b03) * det;
+                out[3] = (a22 * b04 - a21 * b05 - a23 * b03) * det;
+                out[4] = (a12 * b08 - a10 * b11 - a13 * b07) * det;
+                out[5] = (a00 * b11 - a02 * b08 + a03 * b07) * det;
+                out[6] = (a32 * b02 - a30 * b05 - a33 * b01) * det;
+                out[7] = (a20 * b05 - a22 * b02 + a23 * b01) * det;
+                out[8] = (a10 * b10 - a11 * b08 + a13 * b06) * det;
+                out[9] = (a01 * b08 - a00 * b10 - a03 * b06) * det;
+                out[10] = (a30 * b04 - a31 * b02 + a33 * b00) * det;
+                out[11] = (a21 * b02 - a20 * b04 - a23 * b00) * det;
+                out[12] = (a11 * b07 - a10 * b09 - a12 * b06) * det;
+                out[13] = (a00 * b09 - a01 * b07 + a02 * b06) * det;
+                out[14] = (a31 * b01 - a30 * b03 - a32 * b00) * det;
+                out[15] = (a20 * b03 - a21 * b01 + a22 * b00) * det;
+            }
+            
+            // 🆕 NEW: Matrix transpose
+            mat4transpose(out) {
+                const a01 = out[1], a02 = out[2], a03 = out[3];
+                const a12 = out[6], a13 = out[7];
+                const a23 = out[11];
+                
+                out[1] = out[4];
+                out[2] = out[8];
+                out[3] = out[12];
+                out[4] = a01;
+                out[6] = out[9];
+                out[7] = out[13];
+                out[8] = a02;
+                out[9] = a12;
+                out[11] = out[14];
+                out[12] = a03;
+                out[13] = a13;
+                out[14] = a23;
+            }
+            
+            // 🆕 NEW: Matrix copy
+            mat4copy(out, a) {
+                out[0] = a[0]; out[1] = a[1]; out[2] = a[2]; out[3] = a[3];
+                out[4] = a[4]; out[5] = a[5]; out[6] = a[6]; out[7] = a[7];
+                out[8] = a[8]; out[9] = a[9]; out[10] = a[10]; out[11] = a[11];
+                out[12] = a[12]; out[13] = a[13]; out[14] = a[14]; out[15] = a[15];
+            }
+            
+            // Game logic (unchanged)
             startGame() {
                 this.gameRunning = true;
                 this.spawnPiece();
@@ -850,18 +1086,20 @@
                 return false;
             }
             
-            placePiece() {
+                        placePiece() {
                 const shape = this.currentPiece.shape;
                 for (let y = 0; y < shape.length; y++) {
                     for (let x = 0; x < shape[y].length; x++) {
                         if (shape[y][x]) {
                             const boardY = this.currentY + y;
+                            const boardX = this.currentX + x;
                             if (boardY >= 0) {
-                                this.board[boardY][this.currentX + x] = this.currentPiece.color;
+                                this.board[boardY][boardX] = this.currentPiece.color;
                             }
                         }
                     }
                 }
+                
                 this.clearLines();
                 this.spawnPiece();
             }
@@ -876,26 +1114,37 @@
                         y++;
                     }
                 }
+                
                 if (linesCleared > 0) {
                     this.lines += linesCleared;
-                    this.score += linesCleared * 100 * this.level;
+                    this.score += [0, 100, 300, 500, 800][linesCleared] * this.level;
                     this.level = Math.floor(this.lines / 10) + 1;
                     this.dropTime = Math.max(100, 1000 - (this.level - 1) * 100);
-                    this.updateUI();
+                    
+                    document.getElementById('score').textContent = this.score;
+                    document.getElementById('level').textContent = this.level;
+                    document.getElementById('lines').textContent = this.lines;
                 }
             }
             
             moveLeft() {
+                if (!this.gameRunning) return;
                 this.currentX--;
-                if (this.collision()) this.currentX++;
+                if (this.collision()) {
+                    this.currentX++;
+                }
             }
             
             moveRight() {
+                if (!this.gameRunning) return;
                 this.currentX++;
-                if (this.collision()) this.currentX--;
+                if (this.collision()) {
+                    this.currentX--;
+                }
             }
             
             moveDown() {
+                if (!this.gameRunning) return;
                 this.currentY++;
                 if (this.collision()) {
                     this.currentY--;
@@ -904,37 +1153,40 @@
             }
             
             rotate() {
-                const original = this.currentPiece.shape;
-                this.currentPiece.shape = original[0].map((_, i) =>
-                    original.map(row => row[i]).reverse()
+                if (!this.gameRunning) return;
+                const originalShape = this.currentPiece.shape;
+                const rotated = originalShape[0].map((_, i) =>
+                    originalShape.map(row => row[i]).reverse()
                 );
-                if (this.collision()) this.currentPiece.shape = original;
-            }
-            
-            updateUI() {
-                document.getElementById('score').textContent = this.score;
-                document.getElementById('level').textContent = this.level;
-                document.getElementById('lines').textContent = this.lines;
+                
+                this.currentPiece.shape = rotated;
+                
+                if (this.collision()) {
+                    this.currentPiece.shape = originalShape;
+                }
             }
             
             gameOver() {
                 this.gameRunning = false;
-                setTimeout(() => {
-                    if (confirm(`🎮 Game Over!\n\n📊 Score: ${this.score}\n🎯 Level: ${this.level}\n📏 Lines: ${this.lines}\n\nPlay again?`)) {
-                        this.board = Array(20).fill().map(() => Array(10).fill(0));
-                        this.score = 0;
-                        this.level = 1;
-                        this.lines = 0;
-                        this.updateUI();
-                        setTimeout(() => this.startGame(), 500);
-                    }
-                }, 100);
+                alert(`Game Over!\n\nFinal Score: ${this.score}\nLines Cleared: ${this.lines}\nLevel Reached: ${this.level}`);
+                
+                this.board = Array(20).fill().map(() => Array(10).fill(0));
+                this.score = 0;
+                this.level = 1;
+                this.lines = 0;
+                this.dropTime = 1000;
+                
+                document.getElementById('score').textContent = '0';
+                document.getElementById('level').textContent = '1';
+                document.getElementById('lines').textContent = '0';
+                
+                this.startGame();
             }
         }
         
-        window.addEventListener('load', () => {
-            window.tetrisGame = new ARTetris();
-        });
+        // Initialize the game
+        const game = new ARTetris();
     </script>
 </body>
 </html>
+
