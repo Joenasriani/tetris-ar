@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AR Tetris</title>
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        
+        #ui {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 100;
+            color: white;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        
+        #controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .control-btn {
+            background: rgba(255,255,255,0.8);
+            border: none;
+            padding: 15px;
+            border-radius: 50%;
+            font-size: 18px;
+            touch-action: manipulation;
+        }
+        
+        #startBtn {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 100;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 20px 40px;
+            font-size: 18px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="ui">
+        <div>Score: <span id="score">0</span></div>
+        <div>Level: <span id="level">1</span></div>
+        <div>Lines: <span id="lines">0</span></div>
+    </div>
+
+    <div id="controls">
+        <button class="control-btn" id="leftBtn">←</button>
+        <button class="control-btn" id="downBtn">↓</button>
+        <button class="control-btn" id="rightBtn">→</button>
+        <button class="control-btn" id="rotateBtn">↻</button>
+    </div>
+
+    <button id="startBtn">Start AR Tetris</button>
+
+    <a-scene 
+        id="scene"
+        embedded 
+        arjs="sourceType: webcam; displayWidth: 1280; displayHeight: 960; debugUIEnabled: false;"
+        vr-mode-ui="enabled: false"
+        renderer="logarithmicDepthBuffer: true; colorManagement: true;"
+        webxr="requiredFeatures: hit-test,local-floor;"
+        background="color: transparent">
+        
+        <!-- Assets -->
+        <a-assets>
+            <!-- Tetris piece materials -->
+            <a-mixin id="piece-I" material="color: #00FFFF"></a-mixin>
+            <a-mixin id="piece-O" material="color: #FFFF00"></a-mixin>
+            <a-mixin id="piece-T" material="color: #800080"></a-mixin>
+            <a-mixin id="piece-S" material="color: #00FF00"></a-mixin>
+            <a-mixin id="piece-Z" material="color: #FF0000"></a-mixin>
+            <a-mixin id="piece-J" material="color: #0000FF"></a-mixin>
+            <a-mixin id="piece-L" material="color: #FFA500"></a-mixin>
+            <a-mixin id="placed-block" material="color: #888888"></a-mixin>
+        </a-assets>
+
+        <!-- Lighting -->
+        <a-light type="ambient" color="#404040"></a-light>
+        <a-light type="directional" position="1 1 1" light="color: #FFFFFF; intensity: 0.5"></a-light>
+
+        <!-- Camera -->
+        <a-camera 
+            id="camera"
+            position="0 1.6 3"
+            wasd-controls="enabled: false"
+            look-controls="enabled: true">
+        </a-camera>
+
+        <!-- Game Board -->
+        <a-entity id="gameBoard" position="0 0 -2">
+            <!-- Board Frame -->
+            <a-box 
+                id="boardFrame"
+                position="0 1 0"
+                width="2.2" 
+                height="4.2" 
+                depth="0.1"
+                material="color: #333333; opacity: 0.3"
+                wireframe="true">
+            </a-box>
+            
+            <!-- Game pieces container -->
+            <a-entity id="gamePieces"></a-entity>
+            
+            <!-- Current piece container -->
+            <a-entity id="currentPiece"></a-entity>
+        </a-entity>
+    </a-scene>
+
+    <script>
+        class ARTetris {
+            constructor() {
+                this.board = Array(20).fill().map(() => Array(10).fill(0));
+                this.currentPiece = null;
+                this.currentX = 0;
+                this.currentY = 0;
+                this.score = 0;
+                this.level = 1;
+                this.lines = 0;
+                this.dropTime = 1000;
+                this.lastTime = 0;
+                this.gameRunning = false;
+                
+                this.pieces = {
+                    I: [[1,1,1,1]],
+                    O: [[1,1],[1,1]],
+                    T: [[0,1,0],[1,1,1]],
+                    S: [[0,1,1],[1,1,0]],
+                    Z: [[1,1,0],[0,1,1]],
+                    J: [[1,0,0],[1,1,1]],
+                    L: [[0,0,1],[1,1,1]]
+                };
+                
+                this.colors = {
+                    I: '#00FFFF',
+                    O: '#FFFF00',
+                    T: '#800080',
+                    S: '#00FF00',
+                    Z: '#FF0000',
+                    J: '#0000FF',
+                    L: '#FFA500'
+                };
+                
+                this.init();
+            }
+            
+            init() {
+                this.setupEventListeners();
+                this.setupAR();
+            }
+            
+            setupEventListeners() {
+                document.getElementById('startBtn').addEventListener('click', () => {
+                    this.startGame();
+                });
+                
+                document.getElementById('leftBtn').addEventListener('click', () => {
+                    this.moveLeft();
+                });
+                
+                document.getElementById('rightBtn').addEventListener('click', () => {
+                    this.moveRight();
+                });
+                
+                document.getElementById('downBtn').addEventListener('click', () => {
+                    this.moveDown();
+                });
+                
+                document.getElementById('rotateBtn').addEventListener('click', () => {
+                    this.rotate();
+                });
+                
+                // Keyboard controls for desktop testing
+                document.addEventListener('keydown', (e) => {
+                    if (!this.gameRunning) return;
+                    
+                    switch(e.key) {
+                        case 'ArrowLeft':
+                            this.moveLeft();
+                            break;
+                        case 'ArrowRight':
+                            this.moveRight();
+                            break;
+                        case 'ArrowDown':
+                            this.moveDown();
+                            break;
+                        case 'ArrowUp':
+                            this.rotate();
+                            break;
+                    }
+                });
+            }
+            
+            setupAR() {
+                const scene = document.getElementById('scene');
+                
+                if (navigator.xr) {
+                    navigator.xr.isSessionSupported('immersive-ar').then((supported) => {
+                        if (supported) {
+                            console.log('AR supported');
+                        } else {
+                            console.log('AR not supported, falling back to camera view');
+                        }
+                    });
+                }
+            }
+            
+            startGame() {
+                document.getElementById('startBtn').style.display = 'none';
+                this.gameRunning = true;
+                this.spawnPiece();
+                this.gameLoop();
+            }
+            
+            spawnPiece() {
+                const pieceTypes = Object.keys(this.pieces);
+                const randomType = pieceTypes[Math.floor(Math.random() * pieceTypes.length)];
+                
+                this.currentPiece = {
+                    type: randomType,
+                    shape: this.pieces[randomType],
+                    color: this.colors[randomType]
+                };
+                
+                this.currentX = Math.floor(10 / 2) - Math.floor(this.currentPiece.shape[0].length / 2);
+                this.currentY = 0;
+                
+                if (this.collision()) {
+                    this.gameOver();
+                    return;
+                }
+                
+                this.renderCurrentPiece();
+            }
+            
+            collision() {
+                const shape = this.currentPiece.shape;
+                
+                for (let y = 0; y < shape.length; y++) {
+                    for (let x = 0; x < shape[y].length; x++) {
+                        if (shape[y][x]) {
+                            const newX = this.currentX + x;
+                            const newY = this.currentY + y;
+                            
+                            if (newX < 0 || newX >= 10 || newY >= 20) {
+                                return true;
+                            }
+                            
+                            if (newY >= 0 && this.board[newY][newX]) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                
+                return false;
+            }
+            
+            placePiece() {
+                const shape = this.currentPiece.shape;
+                
+                for (let y = 0; y < shape.length; y++) {
+                    for (let x = 0; x < shape[y].length; x++) {
+                        if (shape[y][x]) {
+                            const boardX = this.currentX + x;
+                            const boardY = this.currentY + y;
+                            
+                            if (boardY >= 0) {
+                                this.board[boardY][boardX] = this.currentPiece.type;
+                            }
+                        }
+                    }
+                }
+                
+                this.clearLines();
+                this.renderBoard();
+                this.spawnPiece();
+            }
+            
+            clearLines() {
+                let linesCleared = 0;
+                
+                for (let y = this.board.length - 1; y >= 0; y--) {
+                    if (this.board[y].every(cell => cell !== 0)) {
+                        this.board.splice(y, 1);
+                        this.board.unshift(Array(10).fill(0));
+                        linesCleared++;
+                        y++; // Check the same line again
+                    }
+                }
+                
+                if (linesCleared > 0) {
+                    this.lines += linesCleared;
+                    this.score += linesCleared * 100 * this.level;
+                    this.level = Math.floor(this.lines / 10) + 1;
+                    this.dropTime = Math.max(100, 1000 - (this.level - 1) * 100);
+                    this.updateUI();
+                }
+            }
+            
+            moveLeft() {
+                this.currentX--;
+                if (this.collision()) {
+                    this.currentX++;
+                } else {
+                    this.renderCurrentPiece();
+                }
+            }
+            
+            moveRight() {
+                this.currentX++;
+                if (this.collision()) {
+                    this.currentX--;
+                } else {
+                    this.renderCurrentPiece();
+                }
+            }
+            
+            moveDown() {
+                this.currentY++;
+                if (this.collision()) {
+                    this.currentY--;
+                    this.placePiece();
+                } else {
+                    this.renderCurrentPiece();
+                }
+            }
+            
+            rotate() {
+                const rotated = this.currentPiece.shape[0].map((_, index) =>
+                    this.currentPiece.shape.map(row => row[index]).reverse()
+                );
+                
+                const original = this.currentPiece.shape;
+                this.currentPiece.shape = rotated;
+                
+                if (this.collision()) {
+                    this.currentPiece.shape = original;
+                } else {
+                    this.renderCurrentPiece();
+                }
+            }
+            
+            renderCurrentPiece() {
+                const container = document.getElementById('currentPiece');
+                container.innerHTML = '';
+                
+                const shape = this.currentPiece.shape;
+                
+                for (let y = 0; y < shape.length; y++) {
+                    for (let x = 0; x < shape[y].length; x++) {
+                        if (shape[y][x]) {
+                            const worldX = (this.currentX + x - 4.5) * 0.2;
+                            const worldY = (19 - (this.currentY + y)) * 0.2 - 1.9;
+                            
+                            const block = document.createElement('a-box');
+                            block.setAttribute('position', `${worldX} ${worldY} 0`);
+                            block.setAttribute('width', '0.18');
+                            block.setAttribute('height', '0.18');
+                            block.setAttribute('depth', '0.18');
+                            block.setAttribute('material', `color: ${this.currentPiece.color}`);
+                            
+                            container.appendChild(block);
+                        }
+                    }
+                }
+            }
+            
+            renderBoard() {
+                const container = document.getElementById('gamePieces');
+                container.innerHTML = '';
+                
+                for (let y = 0; y < this.board.length; y++) {
+                    for (let x = 0; x < this.board[y].length; x++) {
+                        if (this.board[y][x]) {
+                            const worldX = (x - 4.5) * 0.2;
+                            const worldY = (19 - y) * 0.2 - 1.9;
+                            
+                            const block = document.createElement('a-box');
+                            block.setAttribute('position', `${worldX} ${worldY} 0`);
+                            block.setAttribute('width', '0.18');
+                            block.setAttribute('height', '0.18');
+                            block.setAttribute('depth', '0.18');
+                            block.setAttribute('material', `color: ${this.colors[this.board[y][x]] || '#888888'}`);
+                            
+                            container.appendChild(block);
+                        }
+                    }
+                }
+            }
+            
+            updateUI() {
+                document.getElementById('score').textContent = this.score;
+                document.getElementById('level').textContent = this.level;
+                document.getElementById('lines').textContent = this.lines;
+            }
+            
+            gameLoop() {
+                if (!this.gameRunning) return;
+                
+                const currentTime = Date.now();
+                
+                if (currentTime - this.lastTime > this.dropTime) {
+                    this.moveDown();
+                    this.lastTime = currentTime;
+                }
+                
+                requestAnimationFrame(() => this.gameLoop());
+            }
+            
+            gameOver() {
+                this.gameRunning = false;
+                alert(`Game Over! Final Score: ${this.score}`);
+                
+                // Reset game
+                this.board = Array(20).fill().map(() => Array(10).fill(0));
+                this.score = 0;
+                this.level = 1;
+                this.lines = 0;
+                this.updateUI();
+                this.renderBoard();
+                
+                document.getElementById('startBtn').style.display = 'block';
+                document.getElementById('currentPiece').innerHTML = '';
+            }
+        }
+        
+        // Initialize the game when the page loads
+        window.addEventListener('load', () => {
+            new ARTetris();
+        });
+        
+        // Handle AR session
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(() => {
+                console.log('Service worker registration failed');
+            });
+        }
+    </script>
+</body>
+</html>
