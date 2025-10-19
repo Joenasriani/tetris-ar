@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AR Tetris</title>
+    <title>AR Tetris - Touch Control</title>
     <style>
         * {
             margin: 0;
@@ -14,16 +14,9 @@
         body {
             font-family: Arial, sans-serif;
             overflow: hidden;
-        }
-        
-        #video {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            z-index: 1;
+            background: #000;
+            -webkit-user-select: none;
+            user-select: none;
         }
         
         #canvas {
@@ -32,7 +25,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: 2;
+            touch-action: none;
         }
         
         #ui {
@@ -41,46 +34,71 @@
             left: 10px;
             z-index: 100;
             color: white;
-            background: rgba(0,0,0,0.7);
+            background: rgba(0,0,0,0.8);
             padding: 15px;
             border-radius: 10px;
             font-size: 16px;
             display: none;
+            pointer-events: none;
         }
         
         #ui div {
             margin: 5px 0;
         }
         
-        #controls {
+        #touchZones {
             position: fixed;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 100;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 50;
             display: none;
-            gap: 15px;
+            pointer-events: none;
         }
         
-        .control-btn {
-            background: rgba(255,255,255,0.9);
-            border: 2px solid #333;
-            padding: 0;
-            border-radius: 50%;
-            font-size: 24px;
-            touch-action: manipulation;
-            width: 70px;
-            height: 70px;
+        .touch-indicator {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            border-radius: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-            font-weight: bold;
+            font-size: 48px;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
         }
         
-        .control-btn:active {
-            transform: scale(0.9);
-            background: rgba(200,200,200,0.9);
+        .touch-indicator.active {
+            opacity: 1;
+        }
+        
+        #leftZone {
+            left: 0;
+            top: 0;
+            width: 35%;
+            height: 100%;
+        }
+        
+        #rightZone {
+            right: 0;
+            top: 0;
+            width: 35%;
+            height: 100%;
+        }
+        
+        #rotateIndicator {
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
         }
         
         #startOverlay {
@@ -139,12 +157,82 @@
             padding: 10px 20px;
             background: rgba(255,255,255,0.2);
             border-radius: 10px;
-            min-height: 24px;
             font-size: 14px;
+            max-width: 350px;
         }
         
         .hidden {
             display: none !important;
+        }
+        
+        #instructions {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            z-index: 90;
+            display: none;
+            max-width: 90%;
+        }
+        
+        #instructions h2 {
+            margin-bottom: 15px;
+            color: #4CAF50;
+        }
+        
+        #instructions p {
+            margin: 10px 0;
+            line-height: 1.5;
+        }
+        
+        .pulse {
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        #controlsHelp {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 25px;
+            font-size: 14px;
+            z-index: 100;
+            display: none;
+            text-align: center;
+            pointer-events: none;
+        }
+        
+        #controlsHelp.show {
+            display: block;
+            animation: slideUp 0.3s ease-out;
+        }
+        
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+        
+        .control-hint {
+            margin: 5px 0;
         }
     </style>
 </head>
@@ -153,17 +241,34 @@
     <div id="startOverlay">
         <div class="emoji">🎮</div>
         <h1>AR Tetris</h1>
-        <p>Experience Tetris in Augmented Reality!</p>
-        <p style="font-size: 14px; opacity: 0.8;">Your browser will ask for camera permission. Please tap "Allow" to play.</p>
-        <button id="startBtn">▶ Start Game</button>
+        <p><strong>True 3D Augmented Reality!</strong></p>
+        <p style="font-size: 14px; opacity: 0.9;">
+            Point your camera at a flat surface and tap to place the game in your real world!
+        </p>
+        <button id="startBtn">▶ Start AR Experience</button>
         <div id="statusText"></div>
+        <p style="font-size: 12px; opacity: 0.7; margin-top: 20px;">
+            ⚠️ Requires Chrome browser on Android with ARCore
+        </p>
     </div>
 
-    <!-- Camera Video -->
-    <video id="video" playsinline autoplay></video>
+    <!-- Instructions -->
+    <div id="instructions">
+        <h2 class="pulse">📍 Tap to Place Game</h2>
+        <p>Point your camera at a flat surface</p>
+        <p>(floor, table, or desk)</p>
+        <p><strong>Then tap anywhere to place the Tetris board!</strong></p>
+    </div>
 
     <!-- Game Canvas -->
     <canvas id="canvas"></canvas>
+
+    <!-- Touch Zones Visualization -->
+    <div id="touchZones">
+        <div class="touch-indicator" id="leftZone">⬅️</div>
+        <div class="touch-indicator" id="rightZone">➡️</div>
+        <div class="touch-indicator" id="rotateIndicator">🔄</div>
+    </div>
 
     <!-- Game UI -->
     <div id="ui">
@@ -172,20 +277,28 @@
         <div>📏 Lines: <span id="lines">0</span></div>
     </div>
 
-    <!-- Game Controls -->
-    <div id="controls">
-        <button class="control-btn" id="leftBtn">←</button>
-        <button class="control-btn" id="downBtn">↓</button>
-        <button class="control-btn" id="rightBtn">→</button>
-        <button class="control-btn" id="rotateBtn">↻</button>
+    <!-- Controls Help -->
+    <div id="controlsHelp">
+        <div class="control-hint">👆 Tap <strong>LEFT</strong> side = Move left</div>
+        <div class="control-hint">👆 Tap <strong>RIGHT</strong> side = Move right</div>
+        <div class="control-hint">👆👆 <strong>Double-tap</strong> = Rotate</div>
+        <div class="control-hint">👇 <strong>Swipe down</strong> = Drop faster</div>
     </div>
 
-    <script>
+    <script type="module">
         class ARTetris {
             constructor() {
-                this.video = document.getElementById('video');
                 this.canvas = document.getElementById('canvas');
-                this.ctx = this.canvas.getContext('2d');
+                this.gl = this.canvas.getContext('webgl', { 
+                    alpha: true,
+                    antialias: true 
+                });
+                
+                this.xrSession = null;
+                this.xrRefSpace = null;
+                this.hitTestSource = null;
+                this.gamePlaced = false;
+                this.gameAnchor = null;
                 
                 this.board = Array(20).fill().map(() => Array(10).fill(0));
                 this.currentPiece = null;
@@ -198,18 +311,20 @@
                 this.lastTime = 0;
                 this.gameRunning = false;
                 
-                this.blockSize = 0;
-                this.boardOffsetX = 0;
-                this.boardOffsetY = 0;
+                // Touch control variables
+                this.lastTapTime = 0;
+                this.doubleTapDelay = 300; // ms
+                this.touchStartY = 0;
+                this.swipeThreshold = 50;
                 
                 this.pieces = {
-                    I: { shape: [[1,1,1,1]], color: '#00FFFF' },
-                    O: { shape: [[1,1],[1,1]], color: '#FFFF00' },
-                    T: { shape: [[0,1,0],[1,1,1]], color: '#800080' },
-                    S: { shape: [[0,1,1],[1,1,0]], color: '#00FF00' },
-                    Z: { shape: [[1,1,0],[0,1,1]], color: '#FF0000' },
-                    J: { shape: [[1,0,0],[1,1,1]], color: '#0000FF' },
-                    L: { shape: [[0,0,1],[1,1,1]], color: '#FFA500' }
+                    I: { shape: [[1,1,1,1]], color: [0, 1, 1, 1] },
+                    O: { shape: [[1,1],[1,1]], color: [1, 1, 0, 1] },
+                    T: { shape: [[0,1,0],[1,1,1]], color: [0.5, 0, 0.5, 1] },
+                    S: { shape: [[0,1,1],[1,1,0]], color: [0, 1, 0, 1] },
+                    Z: { shape: [[1,1,0],[0,1,1]], color: [1, 0, 0, 1] },
+                    J: { shape: [[1,0,0],[1,1,1]], color: [0, 0, 1, 1] },
+                    L: { shape: [[0,0,1],[1,1,1]], color: [1, 0.65, 0, 1] }
                 };
                 
                 this.init();
@@ -218,126 +333,487 @@
             init() {
                 this.setupCanvas();
                 this.setupEventListeners();
-                window.addEventListener('resize', () => this.setupCanvas());
+                this.setupWebGL();
             }
             
             setupCanvas() {
                 this.canvas.width = window.innerWidth;
                 this.canvas.height = window.innerHeight;
+            }
+            
+            setupWebGL() {
+                const gl = this.gl;
                 
-                // Calculate block size and board position
-                const availableHeight = this.canvas.height - 150;
-                this.blockSize = Math.floor(availableHeight / 20);
+                // Vertex shader
+                const vertexShaderSource = `
+                    attribute vec3 position;
+                    uniform mat4 projectionMatrix;
+                    uniform mat4 viewMatrix;
+                    uniform mat4 modelMatrix;
+                    
+                    void main() {
+                        gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0);
+                    }
+                `;
                 
-                const boardWidth = this.blockSize * 10;
-                const boardHeight = this.blockSize * 20;
+                // Fragment shader
+                const fragmentShaderSource = `
+                    precision mediump float;
+                    uniform vec4 color;
+                    
+                    void main() {
+                        gl_FragColor = color;
+                    }
+                `;
                 
-                this.boardOffsetX = (this.canvas.width - boardWidth) / 2;
-                this.boardOffsetY = 50;
+                // Create shaders
+                const vertexShader = gl.createShader(gl.VERTEX_SHADER);
+                gl.shaderSource(vertexShader, vertexShaderSource);
+                gl.compileShader(vertexShader);
+                
+                const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+                gl.shaderSource(fragmentShader, fragmentShaderSource);
+                gl.compileShader(fragmentShader);
+                
+                // Create program
+                this.program = gl.createProgram();
+                gl.attachShader(this.program, vertexShader);
+                gl.attachShader(this.program, fragmentShader);
+                gl.linkProgram(this.program);
+                gl.useProgram(this.program);
+                
+                // Get attribute and uniform locations
+                this.positionLocation = gl.getAttribLocation(this.program, 'position');
+                this.projectionMatrixLocation = gl.getUniformLocation(this.program, 'projectionMatrix');
+                this.viewMatrixLocation = gl.getUniformLocation(this.program, 'viewMatrix');
+                this.modelMatrixLocation = gl.getUniformLocation(this.program, 'modelMatrix');
+                this.colorLocation = gl.getUniformLocation(this.program, 'color');
+                
+                // Create cube vertices
+                this.createCubeBuffer();
+                
+                gl.enable(gl.DEPTH_TEST);
+            }
+            
+            createCubeBuffer() {
+                const gl = this.gl;
+                
+                const vertices = new Float32Array([
+                    // Front face
+                    -0.5, -0.5,  0.5,  0.5, -0.5,  0.5,  0.5,  0.5,  0.5, -0.5,  0.5,  0.5,
+                    // Back face
+                    -0.5, -0.5, -0.5, -0.5,  0.5, -0.5,  0.5,  0.5, -0.5,  0.5, -0.5, -0.5,
+                    // Top face
+                    -0.5,  0.5, -0.5, -0.5,  0.5,  0.5,  0.5,  0.5,  0.5,  0.5,  0.5, -0.5,
+                    // Bottom face
+                    -0.5, -0.5, -0.5,  0.5, -0.5, -0.5,  0.5, -0.5,  0.5, -0.5, -0.5,  0.5,
+                    // Right face
+                     0.5, -0.5, -0.5,  0.5,  0.5, -0.5,  0.5,  0.5,  0.5,  0.5, -0.5,  0.5,
+                    // Left face
+                    -0.5, -0.5, -0.5, -0.5, -0.5,  0.5, -0.5,  0.5,  0.5, -0.5,  0.5, -0.5,
+                ]);
+                
+                const indices = new Uint16Array([
+                    0,  1,  2,  0,  2,  3,    // front
+                    4,  5,  6,  4,  6,  7,    // back
+                    8,  9, 10,  8, 10, 11,    // top
+                    12, 13, 14, 12, 14, 15,   // bottom
+                    16, 17, 18, 16, 18, 19,   // right
+                    20, 21, 22, 20, 22, 23    // left
+                ]);
+                
+                this.vertexBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+                gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+                
+                this.indexBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+                gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+                
+                this.indexCount = indices.length;
             }
             
             setupEventListeners() {
                 document.getElementById('startBtn').addEventListener('click', () => {
-                    this.requestCamera();
+                    this.startAR();
                 });
                 
-                document.getElementById('leftBtn').addEventListener('click', () => {
-                    if (this.gameRunning) this.moveLeft();
-                });
+                // Touch controls for gameplay
+                this.canvas.addEventListener('touchstart', (e) => this.handleTouchStart(e));
+                this.canvas.addEventListener('touchmove', (e) => this.handleTouchMove(e));
+                this.canvas.addEventListener('touchend', (e) => this.handleTouchEnd(e));
                 
-                document.getElementById('rightBtn').addEventListener('click', () => {
-                    if (this.gameRunning) this.moveRight();
-                });
-                
-                document.getElementById('downBtn').addEventListener('click', () => {
-                    if (this.gameRunning) this.moveDown();
-                });
-                
-                document.getElementById('rotateBtn').addEventListener('click', () => {
-                    if (this.gameRunning) this.rotate();
-                });
-                
-                // Keyboard controls
-                document.addEventListener('keydown', (e) => {
-                    if (!this.gameRunning) return;
-                    
-                    switch(e.key) {
-                        case 'ArrowLeft':
-                            this.moveLeft();
-                            break;
-                        case 'ArrowRight':
-                            this.moveRight();
-                            break;
-                        case 'ArrowDown':
-                            this.moveDown();
-                            break;
-                        case 'ArrowUp':
-                            this.rotate();
-                            break;
-                    }
-                });
+                // Mouse controls for testing on desktop
+                this.canvas.addEventListener('click', (e) => this.handleClick(e));
             }
             
-            async requestCamera() {
+            handleTouchStart(e) {
+                e.preventDefault();
+                
+                // For game placement
+                if (this.xrSession && !this.gamePlaced) {
+                    this.placeGame = true;
+                    return;
+                }
+                
+                if (!this.gameRunning) return;
+                
+                const touch = e.touches[0];
+                this.touchStartY = touch.clientY;
+                this.touchStartTime = Date.now();
+            }
+            
+            handleTouchMove(e) {
+                e.preventDefault();
+                
+                if (!this.gameRunning) return;
+                
+                const touch = e.touches[0];
+                const deltaY = touch.clientY - this.touchStartY;
+                
+                // Swipe down detection
+                if (deltaY > this.swipeThreshold) {
+                    this.moveDown();
+                    this.touchStartY = touch.clientY; // Reset for continuous swipe
+                }
+            }
+            
+            handleTouchEnd(e) {
+                e.preventDefault();
+                
+                if (!this.gameRunning || !this.gamePlaced) return;
+                
+                const touch = e.changedTouches[0];
+                const touchDuration = Date.now() - this.touchStartTime;
+                
+                // Ignore long touches (likely swipes)
+                if (touchDuration > 500) return;
+                
+                const x = touch.clientX;
+                const screenWidth = window.innerWidth;
+                
+                // Check for double-tap (rotate)
+                const currentTime = Date.now();
+                const timeSinceLastTap = currentTime - this.lastTapTime;
+                
+                if (timeSinceLastTap < this.doubleTapDelay) {
+                    // Double tap detected - rotate
+                    this.rotate();
+                    this.showRotateIndicator();
+                    this.lastTapTime = 0; // Reset to avoid triple-tap
+                } else {
+                    // Single tap - move left or right
+                    if (x < screenWidth * 0.4) {
+                        // Left side tap
+                        this.moveLeft();
+                        this.showLeftIndicator();
+                    } else if (x > screenWidth * 0.6) {
+                        // Right side tap
+                        this.moveRight();
+                        this.showRightIndicator();
+                    } else {
+                        // Middle area - could be first tap of double-tap
+                    }
+                    
+                    this.lastTapTime = currentTime;
+                }
+            }
+            
+            handleClick(e) {
+                // For desktop testing and game placement
+                if (this.xrSession && !this.gamePlaced) {
+                    this.placeGame = true;
+                    return;
+                }
+                
+                if (!this.gameRunning) return;
+                
+                const x = e.clientX;
+                const screenWidth = window.innerWidth;
+                
+                if (x < screenWidth * 0.4) {
+                    this.moveLeft();
+                    this.showLeftIndicator();
+                } else if (x > screenWidth * 0.6) {
+                    this.moveRight();
+                    this.showRightIndicator();
+                } else {
+                    this.rotate();
+                    this.showRotateIndicator();
+                }
+            }
+            
+            // Visual feedback for touch controls
+            showLeftIndicator() {
+                const indicator = document.getElementById('leftZone');
+                indicator.classList.add('active');
+                setTimeout(() => indicator.classList.remove('active'), 200);
+            }
+            
+            showRightIndicator() {
+                const indicator = document.getElementById('rightZone');
+                indicator.classList.add('active');
+                setTimeout(() => indicator.classList.remove('active'), 200);
+            }
+            
+            showRotateIndicator() {
+                const indicator = document.getElementById('rotateIndicator');
+                indicator.classList.add('active');
+                setTimeout(() => indicator.classList.remove('active'), 300);
+            }
+            
+            async startAR() {
                 const statusText = document.getElementById('statusText');
                 const startBtn = document.getElementById('startBtn');
                 
                 try {
-                    statusText.textContent = '📹 Requesting camera access...';
+                    if (!navigator.xr) {
+                        throw new Error('WebXR not supported. Please use Chrome on Android.');
+                    }
+                    
+                    const supported = await navigator.xr.isSessionSupported('immersive-ar');
+                    if (!supported) {
+                        throw new Error('AR not supported on this device. Make sure you have ARCore installed.');
+                    }
+                    
+                    statusText.textContent = '🚀 Starting AR experience...';
                     startBtn.disabled = true;
                     
-                    // Request camera with back camera preference
-                    const stream = await navigator.mediaDevices.getUserMedia({
-                        video: {
-                            facingMode: { ideal: 'environment' },
-                            width: { ideal: 1280 },
-                            height: { ideal: 720 }
-                        },
-                        audio: false
+                    this.xrSession = await navigator.xr.requestSession('immersive-ar', {
+                        requiredFeatures: ['hit-test', 'local-floor']
                     });
                     
-                    // Set video source
-                    this.video.srcObject = stream;
-                    
-                    // Wait for video to be ready
-                    await new Promise((resolve) => {
-                        this.video.onloadedmetadata = () => {
-                            this.video.play();
-                            resolve();
-                        };
-                    });
-                    
-                    statusText.textContent = '✅ Camera ready! Starting game...';
-                    
-                    // Start game
-                    setTimeout(() => {
-                        document.getElementById('startOverlay').classList.add('hidden');
-                        document.getElementById('ui').style.display = 'block';
-                        document.getElementById('controls').style.display = 'flex';
-                        
-                        this.startGame();
-                    }, 1000);
+                    await this.onSessionStarted();
                     
                 } catch (error) {
                     startBtn.disabled = false;
+                    statusText.textContent = `❌ ${error.message}`;
                     
-                    let errorMsg = '❌ ';
-                    if (error.name === 'NotAllowedError') {
-                        errorMsg += 'Camera permission denied. Please allow camera access and try again.';
-                    } else if (error.name === 'NotFoundError') {
-                        errorMsg += 'No camera found on this device.';
-                    } else {
-                        errorMsg += `Error: ${error.message}`;
-                    }
-                    
-                    statusText.textContent = errorMsg;
+                    setTimeout(() => {
+                        statusText.innerHTML = `
+                            💡 <strong>Requirements:</strong><br>
+                            • Chrome browser on Android<br>
+                            • ARCore installed<br>
+                            • Camera permission granted
+                        `;
+                    }, 3000);
                 }
             }
             
+            async onSessionStarted() {
+                this.xrSession.addEventListener('end', () => this.onSessionEnded());
+                
+                await this.gl.makeXRCompatible();
+                
+                this.xrSession.updateRenderState({
+                    baseLayer: new XRWebGLLayer(this.xrSession, this.gl)
+                });
+                
+                this.xrRefSpace = await this.xrSession.requestReferenceSpace('local-floor');
+                
+                const viewerSpace = await this.xrSession.requestReferenceSpace('viewer');
+                this.hitTestSource = await this.xrSession.requestHitTestSource({ space: viewerSpace });
+                
+                // Hide overlay and show instructions
+                document.getElementById('startOverlay').classList.add('hidden');
+                document.getElementById('instructions').style.display = 'block';
+                
+                this.xrSession.requestAnimationFrame((time, frame) => this.onXRFrame(time, frame));
+            }
+            
+            onSessionEnded() {
+                this.xrSession = null;
+                this.hitTestSource = null;
+                this.gamePlaced = false;
+                document.getElementById('startOverlay').classList.remove('hidden');
+                document.getElementById('instructions').style.display = 'none';
+                document.getElementById('ui').style.display = 'none';
+                document.getElementById('touchZones').style.display = 'none';
+                document.getElementById('controlsHelp').classList.remove('show');
+            }
+            
+            onXRFrame(time, frame) {
+                const session = frame.session;
+                session.requestAnimationFrame((time, frame) => this.onXRFrame(time, frame));
+                
+                const gl = this.gl;
+                const pose = frame.getViewerPose(this.xrRefSpace);
+                
+                if (pose) {
+                    const layer = session.renderState.baseLayer;
+                    gl.bindFramebuffer(gl.FRAMEBUFFER, layer.framebuffer);
+                    
+                    gl.clearColor(0, 0, 0, 0);
+                    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+                    
+                    for (const view of pose.views) {
+                        const viewport = layer.getViewport(view);
+                        gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
+                        
+                        // Handle hit test for placing game
+                        if (this.hitTestSource && this.placeGame && !this.gamePlaced) {
+                            const hitTestResults = frame.getHitTestResults(this.hitTestSource);
+                            if (hitTestResults.length > 0) {
+                                const hit = hitTestResults[0];
+                                const hitPose = hit.getPose(this.xrRefSpace);
+                                this.gameAnchor = hitPose.transform.matrix;
+                                this.gamePlaced = true;
+                                this.placeGame = false;
+                                
+                                document.getElementById('instructions').style.display = 'none';
+                                document.getElementById('ui').style.display = 'block';
+                                document.getElementById('touchZones').style.display = 'block';
+                                
+                                // Show controls help for 5 seconds
+                                const controlsHelp = document.getElementById('controlsHelp');
+                                controlsHelp.classList.add('show');
+                                setTimeout(() => {
+                                    controlsHelp.classList.remove('show');
+                                }, 5000);
+                                
+                                this.startGame();
+                            }
+                        }
+                        
+                        // Render game if placed
+                        if (this.gamePlaced && this.gameAnchor) {
+                            this.renderGame(view.projectionMatrix, view.transform.inverse.matrix);
+                        }
+                    }
+                }
+                
+                // Update game logic
+                if (this.gameRunning) {
+                    const currentTime = Date.now();
+                    if (currentTime - this.lastTime > this.dropTime) {
+                        this.moveDown();
+                        this.lastTime = currentTime;
+                    }
+                }
+            }
+            
+            renderGame(projectionMatrix, viewMatrix) {
+                const gl = this.gl;
+                gl.useProgram(this.program);
+                
+                gl.uniformMatrix4fv(this.projectionMatrixLocation, false, projectionMatrix);
+                gl.uniformMatrix4fv(this.viewMatrixLocation, false, viewMatrix);
+                
+                gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+                gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+                gl.enableVertexAttribArray(this.positionLocation);
+                gl.vertexAttribPointer(this.positionLocation, 3, gl.FLOAT, false, 0, 0);
+                
+                const blockSize = 0.02; // 2cm blocks
+                
+                // Draw board frame
+                this.drawCube(
+                    [0, 0, 0],
+                    [blockSize * 10, blockSize * 20, blockSize * 0.1],
+                    [0.2, 0.2, 0.2, 0.3]
+                );
+                
+                // Draw placed pieces
+                for (let y = 0; y < this.board.length; y++) {
+                    for (let x = 0; x < this.board[y].length; x++) {
+                        if (this.board[y][x]) {
+                            this.drawCube(
+                                [(x - 4.5) * blockSize, (19 - y) * blockSize - 0.19, 0],
+                                [blockSize * 0.95, blockSize * 0.95, blockSize * 0.95],
+                                this.board[y][x]
+                            );
+                        }
+                    }
+                }
+                
+                // Draw current piece
+                if (this.currentPiece) {
+                    const shape = this.currentPiece.shape;
+                    for (let y = 0; y < shape.length; y++) {
+                        for (let x = 0; x < shape[y].length; x++) {
+                            if (shape[y][x]) {
+                                this.drawCube(
+                                    [(this.currentX + x - 4.5) * blockSize, (19 - (this.currentY + y)) * blockSize - 0.19, 0],
+                                    [blockSize * 0.95, blockSize * 0.95, blockSize * 0.95],
+                                    this.currentPiece.color
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+            
+            drawCube(position, scale, color) {
+                const gl = this.gl;
+                
+                const modelMatrix = new Float32Array(16);
+                this.mat4identity(modelMatrix);
+                this.mat4multiply(modelMatrix, this.gameAnchor, modelMatrix);
+                this.mat4translate(modelMatrix, position[0], position[1], position[2]);
+                this.mat4scale(modelMatrix, scale[0], scale[1], scale[2]);
+                
+                gl.uniformMatrix4fv(this.modelMatrixLocation, false, modelMatrix);
+                gl.uniform4fv(this.colorLocation, color);
+                
+                gl.drawElements(gl.TRIANGLES, this.indexCount, gl.UNSIGNED_SHORT, 0);
+            }
+            
+            // Matrix helpers
+            mat4identity(out) {
+                out[0] = 1; out[1] = 0; out[2] = 0; out[3] = 0;
+                out[4] = 0; out[5] = 1; out[6] = 0; out[7] = 0;
+                out[8] = 0; out[9] = 0; out[10] = 1; out[11] = 0;
+                out[12] = 0; out[13] = 0; out[14] = 0; out[15] = 1;
+            }
+            
+            mat4multiply(out, a, b) {
+                const a00 = a[0], a01 = a[1], a02 = a[2], a03 = a[3];
+                const a10 = a[4], a11 = a[5], a12 = a[6], a13 = a[7];
+                const a20 = a[8], a21 = a[9], a22 = a[10], a23 = a[11];
+                const a30 = a[12], a31 = a[13], a32 = a[14], a33 = a[15];
+                
+                let b0 = b[0], b1 = b[1], b2 = b[2], b3 = b[3];
+                out[0] = b0*a00 + b1*a10 + b2*a20 + b3*a30;
+                out[1] = b0*a01 + b1*a11 + b2*a21 + b3*a31;
+                out[2] = b0*a02 + b1*a12 + b2*a22 + b3*a32;
+                out[3] = b0*a03 + b1*a13 + b2*a23 + b3*a33;
+                
+                b0 = b[4]; b1 = b[5]; b2 = b[6]; b3 = b[7];
+                out[4] = b0*a00 + b1*a10 + b2*a20 + b3*a30;
+                out[5] = b0*a01 + b1*a11 + b2*a21 + b3*a31;
+                out[6] = b0*a02 + b1*a12 + b2*a22 + b3*a32;
+                out[7] = b0*a03 + b1*a13 + b2*a23 + b3*a33;
+                
+                b0 = b[8]; b1 = b[9]; b2 = b[10]; b3 = b[11];
+                out[8] = b0*a00 + b1*a10 + b2*a20 + b3*a30;
+                out[9] = b0*a01 + b1*a11 + b2*a21 + b3*a31;
+                out[10] = b0*a02 + b1*a12 + b2*a22 + b3*a32;
+                out[11] = b0*a03 + b1*a13 + b2*a23 + b3*a33;
+                
+                b0 = b[12]; b1 = b[13]; b2 = b[14]; b3 = b[15];
+                out[12] = b0*a00 + b1*a10 + b2*a20 + b3*a30;
+                out[13] = b0*a01 + b1*a11 + b2*a21 + b3*a31;
+                out[14] = b0*a02 + b1*a12 + b2*a22 + b3*a32;
+                out[15] = b0*a03 + b1*a13 + b2*a23 + b3*a33;
+            }
+            
+            mat4translate(out, x, y, z) {
+                out[12] = out[0] * x + out[4] * y + out[8] * z + out[12];
+                out[13] = out[1] * x + out[5] * y + out[9] * z + out[13];
+                out[14] = out[2] * x + out[6] * y + out[10] * z + out[14];
+                out[15] = out[3] * x + out[7] * y + out[11] * z + out[15];
+            }
+            
+            mat4scale(out, x, y, z) {
+                out[0] *= x; out[1] *= x; out[2] *= x; out[3] *= x;
+                out[4] *= y; out[5] *= y; out[6] *= y; out[7] *= y;
+                out[8] *= z; out[9] *= z; out[10] *= z; out[11] *= z;
+            }
+            
+            // Game logic
             startGame() {
                 this.gameRunning = true;
                 this.spawnPiece();
-                this.gameLoop();
             }
             
             spawnPiece() {
@@ -361,50 +837,37 @@
             
             collision() {
                 const shape = this.currentPiece.shape;
-                
                 for (let y = 0; y < shape.length; y++) {
                     for (let x = 0; x < shape[y].length; x++) {
                         if (shape[y][x]) {
                             const newX = this.currentX + x;
                             const newY = this.currentY + y;
-                            
-                            if (newX < 0 || newX >= 10 || newY >= 20) {
-                                return true;
-                            }
-                            
-                            if (newY >= 0 && this.board[newY][newX]) {
-                                return true;
-                            }
+                            if (newX < 0 || newX >= 10 || newY >= 20) return true;
+                            if (newY >= 0 && this.board[newY][newX]) return true;
                         }
                     }
                 }
-                
                 return false;
             }
             
             placePiece() {
                 const shape = this.currentPiece.shape;
-                
                 for (let y = 0; y < shape.length; y++) {
                     for (let x = 0; x < shape[y].length; x++) {
                         if (shape[y][x]) {
-                            const boardX = this.currentX + x;
                             const boardY = this.currentY + y;
-                            
                             if (boardY >= 0) {
-                                this.board[boardY][boardX] = this.currentPiece.color;
+                                this.board[boardY][this.currentX + x] = this.currentPiece.color;
                             }
                         }
                     }
                 }
-                
                 this.clearLines();
                 this.spawnPiece();
             }
             
             clearLines() {
                 let linesCleared = 0;
-                
                 for (let y = this.board.length - 1; y >= 0; y--) {
                     if (this.board[y].every(cell => cell !== 0)) {
                         this.board.splice(y, 1);
@@ -413,7 +876,6 @@
                         y++;
                     }
                 }
-                
                 if (linesCleared > 0) {
                     this.lines += linesCleared;
                     this.score += linesCleared * 100 * this.level;
@@ -425,16 +887,12 @@
             
             moveLeft() {
                 this.currentX--;
-                if (this.collision()) {
-                    this.currentX++;
-                }
+                if (this.collision()) this.currentX++;
             }
             
             moveRight() {
                 this.currentX++;
-                if (this.collision()) {
-                    this.currentX--;
-                }
+                if (this.collision()) this.currentX--;
             }
             
             moveDown() {
@@ -447,78 +905,10 @@
             
             rotate() {
                 const original = this.currentPiece.shape;
-                const rotated = original[0].map((_, index) =>
-                    original.map(row => row[index]).reverse()
+                this.currentPiece.shape = original[0].map((_, i) =>
+                    original.map(row => row[i]).reverse()
                 );
-                
-                this.currentPiece.shape = rotated;
-                
-                if (this.collision()) {
-                    this.currentPiece.shape = original;
-                }
-            }
-            
-            draw() {
-                // Clear canvas
-                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-                
-                // Draw board background
-                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-                this.ctx.fillRect(
-                    this.boardOffsetX,
-                    this.boardOffsetY,
-                    this.blockSize * 10,
-                    this.blockSize * 20
-                );
-                
-                // Draw board frame
-                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-                this.ctx.lineWidth = 3;
-                this.ctx.strokeRect(
-                    this.boardOffsetX,
-                    this.boardOffsetY,
-                    this.blockSize * 10,
-                    this.blockSize * 20
-                );
-                
-                // Draw placed pieces
-                for (let y = 0; y < this.board.length; y++) {
-                    for (let x = 0; x < this.board[y].length; x++) {
-                        if (this.board[y][x]) {
-                            this.drawBlock(x, y, this.board[y][x]);
-                        }
-                    }
-                }
-                
-                // Draw current piece
-                if (this.currentPiece) {
-                    const shape = this.currentPiece.shape;
-                    for (let y = 0; y < shape.length; y++) {
-                        for (let x = 0; x < shape[y].length; x++) {
-                            if (shape[y][x]) {
-                                this.drawBlock(
-                                    this.currentX + x,
-                                    this.currentY + y,
-                                    this.currentPiece.color
-                                );
-                            }
-                        }
-                    }
-                }
-            }
-            
-            drawBlock(x, y, color) {
-                const pixelX = this.boardOffsetX + x * this.blockSize;
-                const pixelY = this.boardOffsetY + y * this.blockSize;
-                
-                // Draw block
-                this.ctx.fillStyle = color;
-                this.ctx.fillRect(pixelX + 1, pixelY + 1, this.blockSize - 2, this.blockSize - 2);
-                
-                // Draw block border
-                this.ctx.strokeStyle = '#000';
-                this.ctx.lineWidth = 2;
-                this.ctx.strokeRect(pixelX + 1, pixelY + 1, this.blockSize - 2, this.blockSize - 2);
+                if (this.collision()) this.currentPiece.shape = original;
             }
             
             updateUI() {
@@ -527,40 +917,21 @@
                 document.getElementById('lines').textContent = this.lines;
             }
             
-            gameLoop() {
-                if (!this.gameRunning) return;
-                
-                const currentTime = Date.now();
-                
-                if (currentTime - this.lastTime > this.dropTime) {
-                    this.moveDown();
-                    this.lastTime = currentTime;
-                }
-                
-                this.draw();
-                requestAnimationFrame(() => this.gameLoop());
-            }
-            
             gameOver() {
                 this.gameRunning = false;
-                
                 setTimeout(() => {
-                    if (confirm(`🎮 Game Over!\n\n📊 Final Score: ${this.score}\n🎯 Level: ${this.level}\n📏 Lines: ${this.lines}\n\nPlay again?`)) {
+                    if (confirm(`🎮 Game Over!\n\n📊 Score: ${this.score}\n🎯 Level: ${this.level}\n📏 Lines: ${this.lines}\n\nPlay again?`)) {
                         this.board = Array(20).fill().map(() => Array(10).fill(0));
                         this.score = 0;
                         this.level = 1;
                         this.lines = 0;
                         this.updateUI();
-                        
-                        setTimeout(() => {
-                            this.startGame();
-                        }, 500);
+                        setTimeout(() => this.startGame(), 500);
                     }
                 }, 100);
             }
         }
         
-        // Initialize when page loads
         window.addEventListener('load', () => {
             window.tetrisGame = new ARTetris();
         });
