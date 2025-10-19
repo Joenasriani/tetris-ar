@@ -4,13 +4,35 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AR Tetris</title>
-    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <style>
-        body {
+        * {
             margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
             font-family: Arial, sans-serif;
-            background: #000;
             overflow: hidden;
+        }
+        
+        #video {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 1;
+        }
+        
+        #canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
         }
         
         #ui {
@@ -20,33 +42,45 @@
             z-index: 100;
             color: white;
             background: rgba(0,0,0,0.7);
-            padding: 10px;
-            border-radius: 5px;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 16px;
             display: none;
+        }
+        
+        #ui div {
+            margin: 5px 0;
         }
         
         #controls {
             position: fixed;
-            bottom: 20px;
+            bottom: 30px;
             left: 50%;
             transform: translateX(-50%);
             z-index: 100;
             display: none;
-            gap: 10px;
+            gap: 15px;
         }
         
         .control-btn {
-            background: rgba(255,255,255,0.8);
-            border: none;
-            padding: 15px;
+            background: rgba(255,255,255,0.9);
+            border: 2px solid #333;
+            padding: 0;
             border-radius: 50%;
-            font-size: 18px;
+            font-size: 24px;
             touch-action: manipulation;
-            width: 60px;
-            height: 60px;
+            width: 70px;
+            height: 70px;
             display: flex;
             align-items: center;
             justify-content: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            font-weight: bold;
+        }
+        
+        .control-btn:active {
+            transform: scale(0.9);
+            background: rgba(200,200,200,0.9);
         }
         
         #startOverlay {
@@ -56,7 +90,7 @@
             width: 100%;
             height: 100%;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            z-index: 999;
+            z-index: 1000;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -64,7 +98,6 @@
             color: white;
             text-align: center;
             padding: 20px;
-            box-sizing: border-box;
         }
         
         #startOverlay h1 {
@@ -74,9 +107,10 @@
         }
         
         #startOverlay p {
-            font-size: 18px;
+            font-size: 16px;
             margin: 10px 0;
             max-width: 400px;
+            line-height: 1.5;
         }
         
         #startBtn {
@@ -89,7 +123,6 @@
             cursor: pointer;
             margin-top: 30px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            transition: all 0.3s;
         }
         
         #startBtn:active {
@@ -107,6 +140,7 @@
             background: rgba(255,255,255,0.2);
             border-radius: 10px;
             min-height: 24px;
+            font-size: 14px;
         }
         
         .hidden {
@@ -120,16 +154,22 @@
         <div class="emoji">🎮</div>
         <h1>AR Tetris</h1>
         <p>Experience Tetris in Augmented Reality!</p>
-        <p style="font-size: 14px; opacity: 0.8;">When you tap start, your browser will ask for camera permission. Please tap "Allow".</p>
+        <p style="font-size: 14px; opacity: 0.8;">Your browser will ask for camera permission. Please tap "Allow" to play.</p>
         <button id="startBtn">▶ Start Game</button>
         <div id="statusText"></div>
     </div>
 
+    <!-- Camera Video -->
+    <video id="video" playsinline autoplay></video>
+
+    <!-- Game Canvas -->
+    <canvas id="canvas"></canvas>
+
     <!-- Game UI -->
     <div id="ui">
-        <div>Score: <span id="score">0</span></div>
-        <div>Level: <span id="level">1</span></div>
-        <div>Lines: <span id="lines">0</span></div>
+        <div>📊 Score: <span id="score">0</span></div>
+        <div>🎯 Level: <span id="level">1</span></div>
+        <div>📏 Lines: <span id="lines">0</span></div>
     </div>
 
     <!-- Game Controls -->
@@ -140,52 +180,13 @@
         <button class="control-btn" id="rotateBtn">↻</button>
     </div>
 
-    <!-- A-Frame Scene -->
-    <a-scene 
-        id="scene"
-        embedded 
-        arjs="sourceType: webcam; displayWidth: 1280; displayHeight: 960; debugUIEnabled: false;"
-        vr-mode-ui="enabled: false"
-        renderer="logarithmicDepthBuffer: true; colorManagement: true;"
-        background="color: transparent"
-        style="display: none;">
-        
-        <!-- Lighting -->
-        <a-light type="ambient" color="#BBB"></a-light>
-        <a-light type="directional" position="1 1 1" light="color: #FFF; intensity: 0.5"></a-light>
-
-        <!-- Camera -->
-        <a-camera 
-            id="camera"
-            position="0 1.6 3"
-            wasd-controls="enabled: false"
-            look-controls="enabled: true">
-        </a-camera>
-
-        <!-- Game Board -->
-        <a-entity id="gameBoard" position="0 0 -2">
-            <!-- Board Frame -->
-            <a-box 
-                id="boardFrame"
-                position="0 1 0"
-                width="2.2" 
-                height="4.2" 
-                depth="0.1"
-                material="color: #333333; opacity: 0.3; transparent: true"
-                wireframe="true">
-            </a-box>
-            
-            <!-- Game pieces container -->
-            <a-entity id="gamePieces"></a-entity>
-            
-            <!-- Current piece container -->
-            <a-entity id="currentPiece"></a-entity>
-        </a-entity>
-    </a-scene>
-
     <script>
         class ARTetris {
             constructor() {
+                this.video = document.getElementById('video');
+                this.canvas = document.getElementById('canvas');
+                this.ctx = this.canvas.getContext('2d');
+                
                 this.board = Array(20).fill().map(() => Array(10).fill(0));
                 this.currentPiece = null;
                 this.currentX = 0;
@@ -197,31 +198,42 @@
                 this.lastTime = 0;
                 this.gameRunning = false;
                 
-                this.pieces = {
-                    I: [[1,1,1,1]],
-                    O: [[1,1],[1,1]],
-                    T: [[0,1,0],[1,1,1]],
-                    S: [[0,1,1],[1,1,0]],
-                    Z: [[1,1,0],[0,1,1]],
-                    J: [[1,0,0],[1,1,1]],
-                    L: [[0,0,1],[1,1,1]]
-                };
+                this.blockSize = 0;
+                this.boardOffsetX = 0;
+                this.boardOffsetY = 0;
                 
-                this.colors = {
-                    I: '#00FFFF',
-                    O: '#FFFF00',
-                    T: '#800080',
-                    S: '#00FF00',
-                    Z: '#FF0000',
-                    J: '#0000FF',
-                    L: '#FFA500'
+                this.pieces = {
+                    I: { shape: [[1,1,1,1]], color: '#00FFFF' },
+                    O: { shape: [[1,1],[1,1]], color: '#FFFF00' },
+                    T: { shape: [[0,1,0],[1,1,1]], color: '#800080' },
+                    S: { shape: [[0,1,1],[1,1,0]], color: '#00FF00' },
+                    Z: { shape: [[1,1,0],[0,1,1]], color: '#FF0000' },
+                    J: { shape: [[1,0,0],[1,1,1]], color: '#0000FF' },
+                    L: { shape: [[0,0,1],[1,1,1]], color: '#FFA500' }
                 };
                 
                 this.init();
             }
             
             init() {
+                this.setupCanvas();
                 this.setupEventListeners();
+                window.addEventListener('resize', () => this.setupCanvas());
+            }
+            
+            setupCanvas() {
+                this.canvas.width = window.innerWidth;
+                this.canvas.height = window.innerHeight;
+                
+                // Calculate block size and board position
+                const availableHeight = this.canvas.height - 150;
+                this.blockSize = Math.floor(availableHeight / 20);
+                
+                const boardWidth = this.blockSize * 10;
+                const boardHeight = this.blockSize * 20;
+                
+                this.boardOffsetX = (this.canvas.width - boardWidth) / 2;
+                this.boardOffsetY = 50;
             }
             
             setupEventListeners() {
@@ -230,19 +242,19 @@
                 });
                 
                 document.getElementById('leftBtn').addEventListener('click', () => {
-                    this.moveLeft();
+                    if (this.gameRunning) this.moveLeft();
                 });
                 
                 document.getElementById('rightBtn').addEventListener('click', () => {
-                    this.moveRight();
+                    if (this.gameRunning) this.moveRight();
                 });
                 
                 document.getElementById('downBtn').addEventListener('click', () => {
-                    this.moveDown();
+                    if (this.gameRunning) this.moveDown();
                 });
                 
                 document.getElementById('rotateBtn').addEventListener('click', () => {
-                    this.rotate();
+                    if (this.gameRunning) this.rotate();
                 });
                 
                 // Keyboard controls
@@ -271,52 +283,54 @@
                 const startBtn = document.getElementById('startBtn');
                 
                 try {
-                    statusText.textContent = 'Requesting camera access...';
+                    statusText.textContent = '📹 Requesting camera access...';
                     startBtn.disabled = true;
                     
-                    // Request camera permission
+                    // Request camera with back camera preference
                     const stream = await navigator.mediaDevices.getUserMedia({
                         video: {
-                            facingMode: 'environment',
+                            facingMode: { ideal: 'environment' },
                             width: { ideal: 1280 },
                             height: { ideal: 720 }
-                        }
+                        },
+                        audio: false
                     });
                     
-                    // Success!
-                    statusText.textContent = '✅ Camera access granted! Starting game...';
+                    // Set video source
+                    this.video.srcObject = stream;
                     
-                    // Start game after short delay
+                    // Wait for video to be ready
+                    await new Promise((resolve) => {
+                        this.video.onloadedmetadata = () => {
+                            this.video.play();
+                            resolve();
+                        };
+                    });
+                    
+                    statusText.textContent = '✅ Camera ready! Starting game...';
+                    
+                    // Start game
                     setTimeout(() => {
                         document.getElementById('startOverlay').classList.add('hidden');
-                        document.getElementById('scene').style.display = 'block';
                         document.getElementById('ui').style.display = 'block';
                         document.getElementById('controls').style.display = 'flex';
                         
-                        // Start the game
-                        setTimeout(() => {
-                            this.startGame();
-                        }, 500);
+                        this.startGame();
                     }, 1000);
                     
                 } catch (error) {
                     startBtn.disabled = false;
                     
-                    let errorMsg = '';
+                    let errorMsg = '❌ ';
                     if (error.name === 'NotAllowedError') {
-                        errorMsg = '❌ Camera permission denied. Please allow camera access and try again.';
+                        errorMsg += 'Camera permission denied. Please allow camera access and try again.';
                     } else if (error.name === 'NotFoundError') {
-                        errorMsg = '❌ No camera found on this device.';
+                        errorMsg += 'No camera found on this device.';
                     } else {
-                        errorMsg = `❌ Error: ${error.message}`;
+                        errorMsg += `Error: ${error.message}`;
                     }
                     
                     statusText.textContent = errorMsg;
-                    
-                    // Add retry instructions
-                    setTimeout(() => {
-                        statusText.innerHTML = errorMsg + '<br><br>💡 Tip: Check your browser settings and make sure no other app is using the camera.';
-                    }, 2000);
                 }
             }
             
@@ -329,11 +343,12 @@
             spawnPiece() {
                 const pieceTypes = Object.keys(this.pieces);
                 const randomType = pieceTypes[Math.floor(Math.random() * pieceTypes.length)];
+                const pieceData = this.pieces[randomType];
                 
                 this.currentPiece = {
                     type: randomType,
-                    shape: this.pieces[randomType],
-                    color: this.colors[randomType]
+                    shape: pieceData.shape,
+                    color: pieceData.color
                 };
                 
                 this.currentX = Math.floor(10 / 2) - Math.floor(this.currentPiece.shape[0].length / 2);
@@ -341,10 +356,7 @@
                 
                 if (this.collision()) {
                     this.gameOver();
-                    return;
                 }
-                
-                this.renderCurrentPiece();
             }
             
             collision() {
@@ -380,14 +392,13 @@
                             const boardY = this.currentY + y;
                             
                             if (boardY >= 0) {
-                                this.board[boardY][boardX] = this.currentPiece.type;
+                                this.board[boardY][boardX] = this.currentPiece.color;
                             }
                         }
                     }
                 }
                 
                 this.clearLines();
-                this.renderBoard();
                 this.spawnPiece();
             }
             
@@ -416,8 +427,6 @@
                 this.currentX--;
                 if (this.collision()) {
                     this.currentX++;
-                } else {
-                    this.renderCurrentPiece();
                 }
             }
             
@@ -425,8 +434,6 @@
                 this.currentX++;
                 if (this.collision()) {
                     this.currentX--;
-                } else {
-                    this.renderCurrentPiece();
                 }
             }
             
@@ -435,8 +442,6 @@
                 if (this.collision()) {
                     this.currentY--;
                     this.placePiece();
-                } else {
-                    this.renderCurrentPiece();
                 }
             }
             
@@ -450,57 +455,70 @@
                 
                 if (this.collision()) {
                     this.currentPiece.shape = original;
-                } else {
-                    this.renderCurrentPiece();
                 }
             }
             
-            renderCurrentPiece() {
-                const container = document.getElementById('currentPiece');
-                container.innerHTML = '';
+            draw() {
+                // Clear canvas
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
                 
-                const shape = this.currentPiece.shape;
+                // Draw board background
+                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                this.ctx.fillRect(
+                    this.boardOffsetX,
+                    this.boardOffsetY,
+                    this.blockSize * 10,
+                    this.blockSize * 20
+                );
                 
-                for (let y = 0; y < shape.length; y++) {
-                    for (let x = 0; x < shape[y].length; x++) {
-                        if (shape[y][x]) {
-                            const worldX = (this.currentX + x - 4.5) * 0.2;
-                            const worldY = (19 - (this.currentY + y)) * 0.2 - 1.9;
-                            
-                            const block = document.createElement('a-box');
-                            block.setAttribute('position', `${worldX} ${worldY} 0`);
-                            block.setAttribute('width', '0.18');
-                            block.setAttribute('height', '0.18');
-                            block.setAttribute('depth', '0.18');
-                            block.setAttribute('material', `color: ${this.currentPiece.color}`);
-                            
-                            container.appendChild(block);
-                        }
-                    }
-                }
-            }
-            
-            renderBoard() {
-                const container = document.getElementById('gamePieces');
-                container.innerHTML = '';
+                // Draw board frame
+                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+                this.ctx.lineWidth = 3;
+                this.ctx.strokeRect(
+                    this.boardOffsetX,
+                    this.boardOffsetY,
+                    this.blockSize * 10,
+                    this.blockSize * 20
+                );
                 
+                // Draw placed pieces
                 for (let y = 0; y < this.board.length; y++) {
                     for (let x = 0; x < this.board[y].length; x++) {
                         if (this.board[y][x]) {
-                            const worldX = (x - 4.5) * 0.2;
-                            const worldY = (19 - y) * 0.2 - 1.9;
-                            
-                            const block = document.createElement('a-box');
-                            block.setAttribute('position', `${worldX} ${worldY} 0`);
-                            block.setAttribute('width', '0.18');
-                            block.setAttribute('height', '0.18');
-                            block.setAttribute('depth', '0.18');
-                            block.setAttribute('material', `color: ${this.colors[this.board[y][x]] || '#888888'}`);
-                            
-                            container.appendChild(block);
+                            this.drawBlock(x, y, this.board[y][x]);
                         }
                     }
                 }
+                
+                // Draw current piece
+                if (this.currentPiece) {
+                    const shape = this.currentPiece.shape;
+                    for (let y = 0; y < shape.length; y++) {
+                        for (let x = 0; x < shape[y].length; x++) {
+                            if (shape[y][x]) {
+                                this.drawBlock(
+                                    this.currentX + x,
+                                    this.currentY + y,
+                                    this.currentPiece.color
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+            
+            drawBlock(x, y, color) {
+                const pixelX = this.boardOffsetX + x * this.blockSize;
+                const pixelY = this.boardOffsetY + y * this.blockSize;
+                
+                // Draw block
+                this.ctx.fillStyle = color;
+                this.ctx.fillRect(pixelX + 1, pixelY + 1, this.blockSize - 2, this.blockSize - 2);
+                
+                // Draw block border
+                this.ctx.strokeStyle = '#000';
+                this.ctx.lineWidth = 2;
+                this.ctx.strokeRect(pixelX + 1, pixelY + 1, this.blockSize - 2, this.blockSize - 2);
             }
             
             updateUI() {
@@ -519,6 +537,7 @@
                     this.lastTime = currentTime;
                 }
                 
+                this.draw();
                 requestAnimationFrame(() => this.gameLoop());
             }
             
@@ -526,18 +545,16 @@
                 this.gameRunning = false;
                 
                 setTimeout(() => {
-                    if (confirm(`Game Over! Final Score: ${this.score}\n\nPlay again?`)) {
+                    if (confirm(`🎮 Game Over!\n\n📊 Final Score: ${this.score}\n🎯 Level: ${this.level}\n📏 Lines: ${this.lines}\n\nPlay again?`)) {
                         this.board = Array(20).fill().map(() => Array(10).fill(0));
                         this.score = 0;
                         this.level = 1;
                         this.lines = 0;
                         this.updateUI();
-                        this.renderBoard();
-                        document.getElementById('currentPiece').innerHTML = '';
                         
                         setTimeout(() => {
                             this.startGame();
-                        }, 1000);
+                        }, 500);
                     }
                 }, 100);
             }
