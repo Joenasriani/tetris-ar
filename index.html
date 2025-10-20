@@ -264,7 +264,6 @@
         class ARTetris {
             constructor() {
                 this.canvas = document.getElementById('canvas');
-                // DON'T create GL context yet - wait for user interaction!
                 this.gl = null;
                 
                 this.xrSession = null;
@@ -311,9 +310,8 @@
                 this.preventZoom();
             }
             
-            // ONLY initialize WebGL when user clicks Start button!
             initWebGL() {
-                if (this.gl) return; // Already initialized
+                if (this.gl) return;
                 
                 this.gl = this.canvas.getContext('webgl', { 
                     alpha: true,
@@ -594,16 +592,13 @@
                         throw new Error('WebXR not supported. Please use Chrome on Android.');
                     }
                     
-                    const supported = await navigator.xr.isSessionSupported('immersive-ar');
-                    if (!supported) {
-                        throw new Error('AR not supported on this device. Make sure you have ARCore installed.');
-                    }
-                    
                     statusText.textContent = '🚀 Starting AR experience...';
                     startBtn.disabled = true;
                     
+                    // Request AR session with more lenient requirements
                     this.xrSession = await navigator.xr.requestSession('immersive-ar', {
-                        requiredFeatures: ['hit-test', 'local-floor']
+                        requiredFeatures: ['local-floor'],
+                        optionalFeatures: ['hit-test']
                     });
                     
                     await this.onSessionStarted();
@@ -614,10 +609,10 @@
                     
                     setTimeout(() => {
                         statusText.innerHTML = `
-                            💡 <strong>Requirements:</strong><br>
-                            • Chrome browser on Android<br>
-                            • ARCore installed<br>
-                            • Camera permission granted
+                            💡 <strong>Try this:</strong><br>
+                            • Make sure ARCore is installed<br>
+                            • Allow camera permission<br>
+                            • Restart Chrome browser
                         `;
                     }, 3000);
                 }
@@ -634,8 +629,13 @@
                 
                 this.xrRefSpace = await this.xrSession.requestReferenceSpace('local-floor');
                 
-                const viewerSpace = await this.xrSession.requestReferenceSpace('viewer');
-                this.hitTestSource = await this.xrSession.requestHitTestSource({ space: viewerSpace });
+                // Try to get hit test source, but don't fail if unavailable
+                try {
+                    const viewerSpace = await this.xrSession.requestReferenceSpace('viewer');
+                    this.hitTestSource = await this.xrSession.requestHitTestSource({ space: viewerSpace });
+                } catch (e) {
+                    console.warn('Hit test not available, game will place at fixed position');
+                }
                 
                 document.getElementById('startOverlay').classList.add('hidden');
                 document.getElementById('instructions').style.display = 'block';
@@ -693,6 +693,26 @@
                                 
                                 this.startGame();
                             }
+                        } else if (this.placeGame && !this.gamePlaced && !this.hitTestSource) {
+                            // Fallback: place at fixed position if hit-test unavailable
+                            const fixedMatrix = new Float32Array(16);
+                            this.mat4identity(fixedMatrix);
+                            fixedMatrix[14] = -1; // 1 meter in front
+                            this.gameAnchor = fixedMatrix;
+                            this.gamePlaced = true;
+                            this.placeGame = false;
+                            
+                            document.getElementById('instructions').style.display = 'none';
+                            document.getElementById('ui').style.display = 'block';
+                            document.getElementById('touchZones').style.display = 'block';
+                            
+                            const controlsHelp = document.getElementById('controlsHelp');
+                            controlsHelp.classList.add('show');
+                            setTimeout(() => {
+                                controlsHelp.classList.remove('show');
+                            }, 7000);
+                            
+                            this.startGame();
                         }
                         
                         if (this.gamePlaced && this.gameAnchor) {
