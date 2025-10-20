@@ -90,18 +90,53 @@
         
         #instructions {
             position: fixed;
-            top: 50%;
+            top: 30%;
             left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.8);
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.9);
             color: white;
             padding: 30px;
             border-radius: 20px;
             text-align: center;
-            font-size: 20px;
+            font-size: 22px;
             z-index: 100;
             display: none;
             max-width: 90%;
+            animation: instructionPulse 3s infinite;
+            line-height: 1.6;
+            border: 3px solid rgba(102, 126, 234, 0.8);
+        }
+        
+        @keyframes instructionPulse {
+            0%, 100% { 
+                transform: translateX(-50%) scale(1);
+                border-color: rgba(102, 126, 234, 0.8);
+            }
+            50% { 
+                transform: translateX(-50%) scale(1.05);
+                border-color: rgba(255, 255, 255, 0.9);
+            }
+        }
+        
+        #floorDetected {
+            position: fixed;
+            bottom: 30%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 200, 0, 0.9);
+            color: white;
+            padding: 20px 30px;
+            border-radius: 15px;
+            font-size: 20px;
+            font-weight: bold;
+            z-index: 150;
+            display: none;
+            animation: bounce 0.8s infinite;
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            50% { transform: translateX(-50%) translateY(-10px); }
         }
         
         #ui {
@@ -213,6 +248,60 @@
         #rotateIndicator.active {
             opacity: 1;
         }
+        
+        #reticle {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            z-index: 15;
+            display: none;
+            pointer-events: none;
+        }
+        
+        #reticle::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 12px;
+            height: 12px;
+            background: rgba(102, 126, 234, 0.9);
+            border-radius: 50%;
+            animation: reticlePulse 1.5s infinite;
+        }
+        
+        @keyframes reticlePulse {
+            0%, 100% { 
+                transform: translate(-50%, -50%) scale(1); 
+                opacity: 1; 
+            }
+            50% { 
+                transform: translate(-50%, -50%) scale(1.8); 
+                opacity: 0.3; 
+            }
+        }
+        
+        #reticle.floor-detected {
+            border-color: #00ff00;
+            animation: reticleFound 1s infinite;
+        }
+        
+        @keyframes reticleFound {
+            0%, 100% { 
+                transform: translate(-50%, -50%) scale(1); 
+                border-color: #00ff00;
+            }
+            50% { 
+                transform: translate(-50%, -50%) scale(1.2); 
+                border-color: #ffffff;
+            }
+        }
     </style>
 </head>
 <body>
@@ -228,8 +317,15 @@
     </div>
     
     <div id="instructions">
-        📱 <strong>TAP</strong> the screen to place the game board
+        🎯 <strong>Point camera at the floor</strong><br>
+        👆 <strong>TAP when you see the green circle!</strong>
     </div>
+    
+    <div id="floorDetected">
+        ✅ <strong>FLOOR FOUND - TAP TO PLACE!</strong>
+    </div>
+    
+    <div id="reticle"></div>
     
     <div id="ui">
         <div class="stat">
@@ -271,6 +367,7 @@
                 this.hitTestSource = null;
                 this.gamePlaced = false;
                 this.gameAnchor = null;
+                this.floorFound = false;
                 
                 this.board = Array(20).fill().map(() => Array(10).fill(0));
                 this.currentPiece = null;
@@ -494,7 +591,8 @@
             handleTouchStart(e) {
                 e.preventDefault();
                 
-                if (this.xrSession && !this.gamePlaced) {
+                // If waiting to place game and floor is detected
+                if (this.xrSession && !this.gamePlaced && this.floorFound) {
                     this.placeGame = true;
                     return;
                 }
@@ -585,7 +683,6 @@
                 const startBtn = document.getElementById('startBtn');
                 
                 try {
-                    // Initialize WebGL NOW (on user click)
                     this.initWebGL();
                     
                     if (!navigator.xr) {
@@ -595,24 +692,25 @@
                     statusText.textContent = '🚀 Starting AR experience...';
                     startBtn.disabled = true;
                     
-                    // Request AR session with more lenient requirements
+                    // Request AR session with hit-test
                     this.xrSession = await navigator.xr.requestSession('immersive-ar', {
-                        requiredFeatures: ['local-floor'],
-                        optionalFeatures: ['hit-test']
+                        requiredFeatures: ['hit-test']
                     });
                     
                     await this.onSessionStarted();
                     
                 } catch (error) {
+                    console.error('AR Error:', error);
                     startBtn.disabled = false;
                     statusText.textContent = `❌ ${error.message}`;
                     
                     setTimeout(() => {
                         statusText.innerHTML = `
-                            💡 <strong>Try this:</strong><br>
-                            • Make sure ARCore is installed<br>
+                            💡 <strong>Troubleshooting:</strong><br>
+                            • Update Chrome to latest version<br>
+                            • Install/Update Google ARCore<br>
                             • Allow camera permission<br>
-                            • Restart Chrome browser
+                            • Try restarting the browser
                         `;
                     }, 3000);
                 }
@@ -627,18 +725,16 @@
                     baseLayer: new XRWebGLLayer(this.xrSession, this.gl)
                 });
                 
+                // Use local-floor for better floor detection
                 this.xrRefSpace = await this.xrSession.requestReferenceSpace('local-floor');
                 
-                // Try to get hit test source, but don't fail if unavailable
-                try {
-                    const viewerSpace = await this.xrSession.requestReferenceSpace('viewer');
-                    this.hitTestSource = await this.xrSession.requestHitTestSource({ space: viewerSpace });
-                } catch (e) {
-                    console.warn('Hit test not available, game will place at fixed position');
-                }
+                // Request hit test source with viewer space for better tracking
+                const viewerSpace = await this.xrSession.requestReferenceSpace('viewer');
+                this.hitTestSource = await this.xrSession.requestHitTestSource({ space: viewerSpace });
                 
                 document.getElementById('startOverlay').classList.add('hidden');
                 document.getElementById('instructions').style.display = 'block';
+                document.getElementById('reticle').style.display = 'block';
                 
                 this.xrSession.requestAnimationFrame((time, frame) => this.onXRFrame(time, frame));
             }
@@ -647,8 +743,12 @@
                 this.xrSession = null;
                 this.hitTestSource = null;
                 this.gamePlaced = false;
+                this.gameRunning = false;
+                this.floorFound = false;
                 document.getElementById('startOverlay').classList.remove('hidden');
                 document.getElementById('instructions').style.display = 'none';
+                document.getElementById('reticle').style.display = 'none';
+                document.getElementById('floorDetected').style.display = 'none';
                 document.getElementById('ui').style.display = 'none';
                 document.getElementById('touchZones').style.display = 'none';
                 document.getElementById('controlsHelp').classList.remove('show');
@@ -668,52 +768,56 @@
                     gl.clearColor(0, 0, 0, 0);
                     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
                     
+                    // Check for floor detection every frame
+                    if (this.hitTestSource && !this.gamePlaced) {
+                        const hitTestResults = frame.getHitTestResults(this.hitTestSource);
+                        
+                        if (hitTestResults.length > 0) {
+                            // Floor detected!
+                            if (!this.floorFound) {
+                                this.floorFound = true;
+                                document.getElementById('reticle').classList.add('floor-detected');
+                                document.getElementById('floorDetected').style.display = 'block';
+                            }
+                            
+                            // If user tapped, place the game
+                            if (this.placeGame) {
+                                const hit = hitTestResults[0];
+                                const hitPose = hit.getPose(this.xrRefSpace);
+                                
+                                if (hitPose) {
+                                    this.gameAnchor = hitPose.transform.matrix;
+                                    this.gamePlaced = true;
+                                    this.placeGame = false;
+                                    
+                                    document.getElementById('instructions').style.display = 'none';
+                                    document.getElementById('reticle').style.display = 'none';
+                                    document.getElementById('floorDetected').style.display = 'none';
+                                    document.getElementById('ui').style.display = 'block';
+                                    document.getElementById('touchZones').style.display = 'block';
+                                    
+                                    const controlsHelp = document.getElementById('controlsHelp');
+                                    controlsHelp.classList.add('show');
+                                    setTimeout(() => {
+                                        controlsHelp.classList.remove('show');
+                                    }, 7000);
+                                    
+                                    this.startGame();
+                                }
+                            }
+                        } else {
+                            // No floor detected
+                            if (this.floorFound) {
+                                this.floorFound = false;
+                                document.getElementById('reticle').classList.remove('floor-detected');
+                                document.getElementById('floorDetected').style.display = 'none';
+                            }
+                        }
+                    }
+                    
                     for (const view of pose.views) {
                         const viewport = layer.getViewport(view);
                         gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
-                        
-                        if (this.hitTestSource && this.placeGame && !this.gamePlaced) {
-                            const hitTestResults = frame.getHitTestResults(this.hitTestSource);
-                            if (hitTestResults.length > 0) {
-                                const hit = hitTestResults[0];
-                                const hitPose = hit.getPose(this.xrRefSpace);
-                                this.gameAnchor = hitPose.transform.matrix;
-                                this.gamePlaced = true;
-                                this.placeGame = false;
-                                
-                                document.getElementById('instructions').style.display = 'none';
-                                document.getElementById('ui').style.display = 'block';
-                                document.getElementById('touchZones').style.display = 'block';
-                                
-                                const controlsHelp = document.getElementById('controlsHelp');
-                                controlsHelp.classList.add('show');
-                                setTimeout(() => {
-                                    controlsHelp.classList.remove('show');
-                                }, 7000);
-                                
-                                this.startGame();
-                            }
-                        } else if (this.placeGame && !this.gamePlaced && !this.hitTestSource) {
-                            // Fallback: place at fixed position if hit-test unavailable
-                            const fixedMatrix = new Float32Array(16);
-                            this.mat4identity(fixedMatrix);
-                            fixedMatrix[14] = -1; // 1 meter in front
-                            this.gameAnchor = fixedMatrix;
-                            this.gamePlaced = true;
-                            this.placeGame = false;
-                            
-                            document.getElementById('instructions').style.display = 'none';
-                            document.getElementById('ui').style.display = 'block';
-                            document.getElementById('touchZones').style.display = 'block';
-                            
-                            const controlsHelp = document.getElementById('controlsHelp');
-                            controlsHelp.classList.add('show');
-                            setTimeout(() => {
-                                controlsHelp.classList.remove('show');
-                            }, 7000);
-                            
-                            this.startGame();
-                        }
                         
                         if (this.gamePlaced && this.gameAnchor) {
                             this.renderGame(view.projectionMatrix, view.transform.inverse.matrix, pose.transform.position);
@@ -752,12 +856,14 @@
                 
                 const blockSize = 0.05;
                 
+                // Game board
                 this.drawCube(
                     [0, 0, 0],
                     [blockSize * 10, blockSize * 20, blockSize * 0.5],
                     [0.15, 0.15, 0.15, 0.5]
                 );
                 
+                // Placed blocks
                 for (let y = 0; y < this.board.length; y++) {
                     for (let x = 0; x < this.board[y].length; x++) {
                         if (this.board[y][x]) {
@@ -770,6 +876,7 @@
                     }
                 }
                 
+                // Current piece
                 if (this.currentPiece) {
                     const shape = this.currentPiece.shape;
                     for (let y = 0; y < shape.length; y++) {
@@ -813,6 +920,7 @@
                 gl.drawElements(gl.TRIANGLES, this.indexCount, gl.UNSIGNED_SHORT, 0);
             }
             
+            // Matrix math functions (keeping them the same)
             mat4identity(out) {
                 out[0] = 1; out[1] = 0; out[2] = 0; out[3] = 0;
                 out[4] = 0; out[5] = 1; out[6] = 0; out[7] = 0;
@@ -985,7 +1093,7 @@
             placePiece() {
                 const shape = this.currentPiece.shape;
                 for (let y = 0; y < shape.length; y++) {
-                    for (let x = 0; x < shape[y].length; x++) {
+                    for (let x = 0; x < shape[y].length; x
                         if (shape[y][x]) {
                             const boardY = this.currentY + y;
                             const boardX = this.currentX + x;
@@ -1007,24 +1115,21 @@
                         this.board.splice(y, 1);
                         this.board.unshift(Array(10).fill(0));
                         linesCleared++;
-                        y++;
+                        y++; // Check the same line again
                     }
                 }
                 
                 if (linesCleared > 0) {
                     this.lines += linesCleared;
-                    this.score += [0, 100, 300, 500, 800][linesCleared] * this.level;
+                    this.score += linesCleared * 100 * this.level;
                     this.level = Math.floor(this.lines / 10) + 1;
                     this.dropTime = Math.max(100, 1000 - (this.level - 1) * 100);
-                    
-                    document.getElementById('score').textContent = this.score;
-                    document.getElementById('level').textContent = this.level;
-                    document.getElementById('lines').textContent = this.lines;
+                    this.updateUI();
                 }
             }
             
             moveLeft() {
-                if (!this.gameRunning) return;
+                if (!this.currentPiece) return;
                 this.currentX--;
                 if (this.collision()) {
                     this.currentX++;
@@ -1032,7 +1137,7 @@
             }
             
             moveRight() {
-                if (!this.gameRunning) return;
+                if (!this.currentPiece) return;
                 this.currentX++;
                 if (this.collision()) {
                     this.currentX--;
@@ -1040,7 +1145,7 @@
             }
             
             moveDown() {
-                if (!this.gameRunning) return;
+                if (!this.currentPiece) return;
                 this.currentY++;
                 if (this.collision()) {
                     this.currentY--;
@@ -1049,39 +1154,117 @@
             }
             
             rotate() {
-                if (!this.gameRunning) return;
+                if (!this.currentPiece) return;
                 const originalShape = this.currentPiece.shape;
-                const rotated = originalShape[0].map((_, i) =>
-                    originalShape.map(row => row[i]).reverse()
-                );
-                
+                const rotated = this.rotateMatrix(originalShape);
                 this.currentPiece.shape = rotated;
                 
                 if (this.collision()) {
-                    this.currentPiece.shape = originalShape;
+                    // Try wall kicks
+                    const originalX = this.currentX;
+                    this.currentX++;
+                    if (this.collision()) {
+                        this.currentX = originalX - 1;
+                        if (this.collision()) {
+                            this.currentX = originalX;
+                            this.currentPiece.shape = originalShape;
+                        }
+                    }
                 }
+            }
+            
+            rotateMatrix(matrix) {
+                const rows = matrix.length;
+                const cols = matrix[0].length;
+                const rotated = Array(cols).fill().map(() => Array(rows).fill(0));
+                
+                for (let i = 0; i < rows; i++) {
+                    for (let j = 0; j < cols; j++) {
+                        rotated[j][rows - 1 - i] = matrix[i][j];
+                    }
+                }
+                
+                return rotated;
+            }
+            
+            updateUI() {
+                document.getElementById('score').textContent = this.score;
+                document.getElementById('level').textContent = this.level;
+                document.getElementById('lines').textContent = this.lines;
             }
             
             gameOver() {
                 this.gameRunning = false;
-                alert(`Game Over!\n\nFinal Score: ${this.score}\nLines Cleared: ${this.lines}\nLevel Reached: ${this.level}`);
                 
+                // Show game over overlay
+                const gameOverDiv = document.createElement('div');
+                gameOverDiv.innerHTML = `
+                    <div style="
+                        position: fixed;
+                        top: 50%;
+                        left: 50%;
+                        transform: translate(-50%, -50%);
+                        background: rgba(0, 0, 0, 0.95);
+                        color: white;
+                        padding: 40px;
+                        border-radius: 20px;
+                        text-align: center;
+                        z-index: 200;
+                        border: 3px solid #ff4444;
+                    ">
+                        <h2 style="color: #ff4444; font-size: 48px; margin-bottom: 20px;">GAME OVER</h2>
+                        <div style="font-size: 24px; margin: 15px 0;">
+                            <strong>Final Score: ${this.score}</strong>
+                        </div>
+                        <div style="font-size: 20px; margin: 10px 0;">
+                            Level: ${this.level} | Lines: ${this.lines}
+                        </div>
+                        <button id="restartBtn" style="
+                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                            color: white;
+                            border: none;
+                            padding: 15px 30px;
+                            font-size: 20px;
+                            border-radius: 25px;
+                            cursor: pointer;
+                            margin-top: 20px;
+                            font-weight: bold;
+                        ">🔄 RESTART GAME</button>
+                    </div>
+                `;
+                
+                document.body.appendChild(gameOverDiv);
+                
+                document.getElementById('restartBtn').addEventListener('click', () => {
+                    document.body.removeChild(gameOverDiv);
+                    this.resetGame();
+                });
+                
+                setTimeout(() => {
+                    if (document.body.contains(gameOverDiv)) {
+                        document.body.removeChild(gameOverDiv);
+                        this.resetGame();
+                    }
+                }, 10000);
+            }
+            
+            resetGame() {
                 this.board = Array(20).fill().map(() => Array(10).fill(0));
+                this.currentPiece = null;
                 this.score = 0;
                 this.level = 1;
                 this.lines = 0;
                 this.dropTime = 1000;
-                
-                document.getElementById('score').textContent = '0';
-                document.getElementById('level').textContent = '1';
-                document.getElementById('lines').textContent = '0';
-                
+                this.updateUI();
                 this.startGame();
             }
         }
         
-        // Initialize the game
-        const game = new ARTetris();
+        // Start the game when page loads
+        window.addEventListener('load', () => {
+            new ARTetris();
+        });
+        
     </script>
 </body>
 </html>
