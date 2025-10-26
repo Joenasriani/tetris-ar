@@ -2,7 +2,7 @@ tetris in ar using webxr
 
 _________________________
 
-> https://joenasriani.github.io/tetris-ar/
+> https://joenasriani.github.io/tetris-deep/
 
 _________________________
 
