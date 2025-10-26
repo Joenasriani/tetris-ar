@@ -1,160 +1,380 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>AR Tetris Pro</title>
-    <meta charset="utf-8">
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="xr-spatial-tracking" content="true">
-    
+    <title>AR Tetris Pro</title>
     <style>
-        body, html {
+        * {
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
             overflow: hidden;
-            font-family: 'Segoe UI', Tahoma, sans-serif;
-            background: #000;
-            color: white;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
             touch-action: none;
         }
 
-        /* Game Canvas */
+        #ar-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
         canvas {
             display: block;
             width: 100%;
             height: 100%;
         }
 
-        /* UI Elements */
-        #game-ui {
+        #ui-overlay {
             position: fixed;
-            top: 10px;
-            left: 10px;
-            z-index: 1000;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             pointer-events: none;
+            z-index: 100;
         }
 
-        .ui-panel {
-            background: rgba(20, 20, 35, 0.85);
-            padding: 8px 12px;
-            border-radius: 8px;
-            margin-bottom: 8px;
+        #game-hud {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 101;
+        }
+
+        .hud-panel {
+            background: rgba(25, 25, 45, 0.85);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 12px 18px;
+            border: 1px solid rgba(100, 150, 255, 0.2);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .hud-header {
             font-size: 14px;
-            border: 1px solid rgba(100, 180, 255, 0.2);
-            backdrop-filter: blur(5px);
+            color: #a0a0ff;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .hud-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #fff;
         }
 
         #next-piece {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            width: 50px;
-            height: 50px;
-            background: rgba(20, 20, 35, 0.85);
-            border-radius: 8px;
-            border: 1px solid rgba(100, 180, 255, 0.2);
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            width: 80px;
+            height: 80px;
+            background: rgba(25, 25, 45, 0.85);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            border: 1px solid rgba(100, 150, 255, 0.2);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px;
+            overflow: hidden;
+        }
+
+        #next-piece-label {
+            font-size: 12px;
+            color: #a0a0ff;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #next-piece-canvas {
+            width: 60px;
+            height: 60px;
         }
 
         #ar-button {
-            position: fixed;
-            bottom: 20px;
+            position: absolute;
+            bottom: 30px;
             left: 50%;
             transform: translateX(-50%);
-            background: linear-gradient(145deg, #6A11CB, #2575FC);
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
             color: white;
             border: none;
-            padding: 14px 32px;
+            padding: 16px 40px;
             border-radius: 30px;
             font-size: 18px;
             font-weight: 600;
             cursor: pointer;
-            box-shadow: 0 6px 20px rgba(37, 117, 252, 0.5);
-            z-index: 1001;
+            box-shadow: 0 6px 25px rgba(37, 117, 252, 0.5);
+            z-index: 102;
+            pointer-events: auto;
             transition: all 0.3s ease;
         }
 
         #ar-button:hover {
             transform: translateX(-50%) scale(1.05);
-            box-shadow: 0 8px 25px rgba(37, 117, 252, 0.7);
+            box-shadow: 0 8px 30px rgba(37, 117, 252, 0.7);
         }
 
         #placement-hint {
-            position: fixed;
+            position: absolute;
             bottom: 100px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.8);
-            padding: 14px 24px;
-            border-radius: 10px;
+            background: rgba(15, 15, 30, 0.85);
+            backdrop-filter: blur(10px);
+            padding: 15px 30px;
+            border-radius: 15px;
+            text-align: center;
+            max-width: 90%;
+            border: 1px solid rgba(100, 150, 255, 0.2);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
             display: none;
+            z-index: 102;
+            pointer-events: none;
+        }
+
+        #game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(15, 15, 30, 0.95);
+            backdrop-filter: blur(20px);
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            display: none;
+            z-index: 103;
+            width: 90%;
+            max-width: 400px;
+            border: 1px solid rgba(255, 80, 80, 0.3);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            pointer-events: auto;
+        }
+
+        #game-over h2 {
+            font-size: 32px;
+            color: #ff5555;
+            margin-bottom: 15px;
+        }
+
+        #final-score {
+            font-size: 26px;
+            font-weight: 700;
+            margin: 20px 0;
+        }
+
+        #restart-button {
+            background: linear-gradient(135deg, #00c853 0%, #009624 100%);
+            color: white;
+            border: none;
+            padding: 14px 35px;
+            border-radius: 30px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(0, 200, 83, 0.4);
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+
+        #restart-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 25px rgba(0, 200, 83, 0.5);
+        }
+
+        #controls-hint {
+            position: absolute;
+            bottom: 160px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 15, 30, 0.85);
+            backdrop-filter: blur(10px);
+            padding: 14px 20px;
+            border-radius: 15px;
+            text-align: center;
+            max-width: 90%;
+            border: 1px solid rgba(100, 150, 255, 0.2);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            display: none;
+            z-index: 101;
+            pointer-events: none;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        #controls-hint div {
+            margin: 5px 0;
+        }
+
+        .control-direction {
+            display: inline-block;
+            background: rgba(100, 150, 255, 0.2);
+            border-radius: 5px;
+            padding: 2px 8px;
+            margin: 0 3px;
+        }
+
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 10, 20, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+        }
+
+        .loader {
+            width: 60px;
+            height: 60px;
+            border: 5px solid rgba(100, 150, 255, 0.2);
+            border-radius: 50%;
+            border-top-color: #6a11cb;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        #loading-text {
+            font-size: 18px;
+            color: #a0a0ff;
             text-align: center;
             max-width: 80%;
         }
 
-        #game-over {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.9);
-            padding: 30px 40px;
-            border-radius: 16px;
-            text-align: center;
-            display: none;
-            z-index: 1002;
-            border: 2px solid rgba(255, 50, 50, 0.3);
-        }
-
-        #restart-button {
-            background: linear-gradient(145deg, #00C853, #009624);
-            color: white;
-            border: none;
-            padding: 12px 30px;
-            border-radius: 30px;
-            font-size: 18px;
-            font-weight: 600;
-            margin-top: 20px;
-            cursor: pointer;
+        @media (max-width: 768px) {
+            #game-hud {
+                top: 10px;
+                left: 10px;
+            }
+            
+            .hud-panel {
+                padding: 10px 15px;
+            }
+            
+            .hud-value {
+                font-size: 20px;
+            }
+            
+            #next-piece {
+                top: 10px;
+                right: 10px;
+                width: 70px;
+                height: 70px;
+            }
+            
+            #next-piece-canvas {
+                width: 50px;
+                height: 50px;
+            }
+            
+            #ar-button {
+                padding: 14px 35px;
+                font-size: 16px;
+            }
+            
+            #game-over {
+                padding: 30px;
+            }
+            
+            #game-over h2 {
+                font-size: 28px;
+            }
+            
+            #final-score {
+                font-size: 22px;
+            }
         }
     </style>
 </head>
 <body>
-    <!-- Game UI -->
-    <div id="game-ui">
-        <div class="ui-panel">SCORE: <span id="score">0</span></div>
-        <div class="ui-panel">LEVEL: <span id="level">1</span></div>
-    </div>
-    <div id="next-piece"></div>
-    
-    <!-- AR Controls -->
-    <button id="ar-button">START AR EXPERIENCE</button>
-    <div id="placement-hint">Move your device to scan a surface, then tap to place the game board</div>
-    
-    <!-- Game Over Screen -->
-    <div id="game-over">
-        <h2 style="color: #FF5555; margin-bottom: 20px;">GAME OVER</h2>
-        <p>Your Final Score: <span id="final-score" style="font-weight: bold;">0</span></p>
-        <button id="restart-button">PLAY AGAIN</button>
+    <!-- Loading Screen -->
+    <div id="loading">
+        <div class="loader"></div>
+        <div id="loading-text">Loading AR Tetris Pro...</div>
     </div>
 
-    <!-- Audio Files -->
-    <audio id="bgm" src="/music/music.mp3" loop></audio>
-    <audio id="move-sfx" src="/music/tik.mp3"></audio>
-    <audio id="clear-sfx" src="/music/lineclear.mp3"></audio>
-    <audio id="gameover-sfx" src="/music/outro.mp3"></audio>
+    <!-- AR Container -->
+    <div id="ar-container"></div>
+    
+    <!-- Game UI -->
+    <div id="ui-overlay">
+        <div id="game-hud">
+            <div class="hud-panel">
+                <div class="hud-header">Score</div>
+                <div id="score" class="hud-value">0</div>
+            </div>
+            <div class="hud-panel">
+                <div class="hud-header">Level</div>
+                <div id="level" class="hud-value">1</div>
+            </div>
+        </div>
+        
+        <div id="next-piece">
+            <div id="next-piece-label">Next</div>
+            <canvas id="next-piece-canvas"></canvas>
+        </div>
+        
+        <button id="ar-button">START AR EXPERIENCE</button>
+        
+        <div id="placement-hint">
+            Move your device to find a flat surface, then tap to place the game board.
+        </div>
+        
+        <div id="controls-hint">
+            <div><span class="control-direction">LEFT</span> Tap left side to move left</div>
+            <div><span class="control-direction">RIGHT</span> Tap right side to move right</div>
+            <div><span class="control-direction">CENTER</span> Tap to rotate</div>
+            <div><span class="control-direction">DOWN</span> Swipe down to drop</div>
+        </div>
+        
+        <div id="game-over">
+            <h2>GAME OVER</h2>
+            <p>Your Final Score</p>
+            <div id="final-score">0</div>
+            <button id="restart-button">PLAY AGAIN</button>
+        </div>
+    </div>
 
     <script type="module">
         import * as THREE from 'three';
-        import { ARButton } from 'three/addons/webxr/ARButton.js';
+        import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/webxr/ARButton.js';
 
         // Game Constants
         const BOARD_SIZE = 2.0; // 2 meters in real world
-        
-        // Board dimensions (10x20 grid)
         const BOARD_WIDTH = 10;
         const BOARD_HEIGHT = 20;
         const BLOCK_SIZE = BOARD_SIZE / BOARD_WIDTH;
         
-        // Tetromino shapes
+        // Tetromino shapes with rotations
         const SHAPES = [
             // I-piece
             [[1, 1, 1, 1]],
@@ -172,7 +392,7 @@
             [[0, 1], [0, 1], [1, 1]]
         ];
         
-        // Colors for each tetromino type
+        // Colors for each tetromino
         const COLORS = [
             0x00F0F0, // I - Cyan
             0xF0F000, // O - Yellow
@@ -186,7 +406,7 @@
         // Level speeds (milliseconds between drops)
         const LEVEL_SPEEDS = [1000, 850, 700, 550, 450, 350, 280, 220, 180, 150];
         
-        // Game Variables
+        // Game variables
         let renderer, scene, camera;
         let gameBoard, placementGrid;
         let currentPiece, nextPieceType;
@@ -195,94 +415,183 @@
         let score = 0, level = 1, gameActive = false;
         let gameLoopInterval = null;
         let audioEnabled = false;
+        let sessionStarted = false;
         
-        // DOM Elements
+        // DOM elements
+        const arContainer = document.getElementById('ar-container');
         const arButton = document.getElementById('ar-button');
         const placementHint = document.getElementById('placement-hint');
         const gameOverScreen = document.getElementById('game-over');
         const restartButton = document.getElementById('restart-button');
         const finalScoreElement = document.getElementById('final-score');
+        const scoreElement = document.getElementById('score');
+        const levelElement = document.getElementById('level');
+        const nextPieceCanvas = document.getElementById('next-piece-canvas');
+        const nextPieceCtx = nextPieceCanvas.getContext('2d');
+        const controlsHint = document.getElementById('controls-hint');
+        const loadingScreen = document.getElementById('loading');
         
         // Initialize the game
         async function init() {
-            // Initialize scene
-            scene = new THREE.Scene();
-            
-            // Initialize camera
-            camera = new THREE.PerspectiveCamera(
-                70, 
-                window.innerWidth / window.innerHeight, 
-                0.01, 
-                20
-            );
-            
-            // Setup lighting
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
-            scene.add(ambientLight);
-            
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
-            directionalLight.position.set(1, 1, 1);
-            scene.add(directionalLight);
-            
-            // Initialize renderer
-            renderer = new THREE.WebGLRenderer({ 
-                antialias: true, 
-                alpha: true,
-                powerPreference: "high-performance"
-            });
-            renderer.setPixelRatio(window.devicePixelRatio);
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.xr.enabled = true;
-            document.body.appendChild(renderer.domElement);
-            
-            // Create placement grid
-            placementGrid = new THREE.Mesh(
-                new THREE.PlaneGeometry(BOARD_SIZE, BOARD_SIZE),
-                new THREE.MeshBasicMaterial({
+            try {
+                // Initialize scene
+                scene = new THREE.Scene();
+                
+                // Initialize camera
+                camera = new THREE.PerspectiveCamera(
+                    70, 
+                    window.innerWidth / window.innerHeight, 
+                    0.01, 
+                    20
+                );
+                camera.position.set(0, 1, 0);
+                
+                // Setup lighting
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+                scene.add(ambientLight);
+                
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+                directionalLight.position.set(1, 1, 1);
+                scene.add(directionalLight);
+                
+                // Initialize renderer
+                renderer = new THREE.WebGLRenderer({ 
+                    antialias: true, 
+                    alpha: true,
+                    powerPreference: "high-performance"
+                });
+                renderer.setPixelRatio(window.devicePixelRatio);
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.xr.enabled = true;
+                arContainer.appendChild(renderer.domElement);
+                
+                // Create placement grid
+                const gridGeometry = new THREE.PlaneGeometry(BOARD_SIZE, BOARD_SIZE);
+                const gridMaterial = new THREE.MeshBasicMaterial({
                     color: 0x0099ff,
                     wireframe: true,
                     transparent: true,
                     opacity: 0.5
-                })
-            );
-            placementGrid.rotation.x = -Math.PI / 2; // Rotate to be horizontal
-            placementGrid.visible = false;
-            scene.add(placementGrid);
-            
-            // Create game board group
-            gameBoard = new THREE.Group();
-            
-            // Initialize grid
-            resetGrid();
-            
-            // Setup AR button
-            const defaultARButton = ARButton.createButton(renderer, {
-                requiredFeatures: ['hit-test'],
-                optionalFeatures: ['dom-overlay']
-            });
-            defaultARButton.style.display = 'none';
-            document.body.appendChild(defaultARButton);
-            
-            // Event listeners
-            arButton.addEventListener('click', () => {
+                });
+                placementGrid = new THREE.Mesh(gridGeometry, gridMaterial);
+                placementGrid.rotation.x = -Math.PI / 2;
+                placementGrid.visible = false;
+                scene.add(placementGrid);
+                
+                // Create game board group
+                gameBoard = new THREE.Group();
+                
+                // Initialize grid
+                resetGrid();
+                
+                // Setup event listeners
+                arButton.addEventListener('click', startARSession);
+                restartButton.addEventListener('click', restartGame);
+                
+                // Setup touch controls
+                renderer.domElement.addEventListener('touchstart', handleTouchStart, { passive: false });
+                renderer.domElement.addEventListener('touchmove', handleTouchMove, { passive: false });
+                renderer.domElement.addEventListener('touchend', handleTouchEnd, { passive: false });
+                
+                // Handle window resize
+                window.addEventListener('resize', onWindowResize);
+                
+                // Hide loading screen after a short delay
+                setTimeout(() => {
+                    loadingScreen.style.display = 'none';
+                }, 1500);
+                
+                console.log("Game initialized successfully");
+            } catch (error) {
+                console.error("Initialization error:", error);
+                loadingScreen.innerHTML = `
+                    <div style="color: #ff5555; font-size: 20px; margin-bottom: 20px;">Initialization Error</div>
+                    <div style="margin-bottom: 20px;">${error.message}</div>
+                    <button onclick="location.reload()" style="background: #6a11cb; color: white; border: none; padding: 12px 25px; border-radius: 25px; cursor: pointer;">
+                        Reload Page
+                    </button>
+                `;
+            }
+        }
+        
+        // Start AR session
+        async function startARSession() {
+            try {
+                console.log("Starting AR session...");
+                
+                // Create the AR button
+                const defaultARButton = ARButton.createButton(renderer, {
+                    requiredFeatures: ['hit-test'],
+                    optionalFeatures: ['dom-overlay'],
+                    domOverlay: { root: document.body }
+                });
+                defaultARButton.id = "default-ar-button";
+                defaultARButton.style.display = 'none';
+                document.body.appendChild(defaultARButton);
+                
+                // Attempt to start AR session
                 defaultARButton.click();
+                sessionStarted = true;
+                
+                // Show placement hint
+                placementHint.style.display = 'block';
+                
+                // Setup session event listeners
+                renderer.xr.addEventListener('sessionstart', onSessionStart);
+                renderer.xr.addEventListener('sessionend', onSessionEnd);
+                
+                // Start animation loop
+                renderer.setAnimationLoop(animate);
+                
+                console.log("AR session started");
+            } catch (error) {
+                console.error("AR session failed to start:", error);
+                placementHint.textContent = "AR not supported on this device. Please try on a compatible mobile device.";
+            }
+        }
+        
+        // Handle AR session start
+        async function onSessionStart() {
+            try {
+                const session = renderer.xr.getSession();
+                console.log("AR session started");
+                
+                // Request hit test source
+                const referenceSpace = await session.requestReferenceSpace('viewer');
+                hitTestSource = await session.requestHitTestSource({ space: referenceSpace });
+                
+                // Setup select event for placing board
+                session.addEventListener('select', placeGameBoard);
+                
+                // Update UI
+                arButton.style.display = 'none';
+                placementHint.style.display = 'block';
+                
+                // Initialize audio
                 initAudio();
-            });
-            
-            restartButton.addEventListener('click', restartGame);
-            
-            // Touch controls
-            renderer.domElement.addEventListener('touchstart', handleTouch, { passive: false });
-            
-            // Handle AR session events
-            renderer.xr.addEventListener('sessionstart', onSessionStart);
-            renderer.xr.addEventListener('sessionend', onSessionEnd);
-            
-            // Start animation loop
-            renderer.setAnimationLoop(animate);
-            
-            // Handle window resize
-            window.addEventListener('resize', onWindowResize);
+            } catch (error) {
+                console.error("Session start error:", error);
+            }
+        }
+        
+        // Handle AR session end
+        function onSessionEnd() {
+            console.log("AR session ended");
+            resetGameState();
+            location.reload();
+        }
+        
+        // Initialize audio
+        function initAudio() {
+            console.log("Initializing audio system");
+            audioEnabled = true;
+        }
+        
+        // Play sound effect
+        function playSound(type) {
+            if (!audioEnabled) return;
+            console.log(`Playing sound: ${type}`);
+            // In a real implementation, you would play the actual audio files here
         }
         
         // Reset game grid
@@ -291,29 +600,6 @@
             for (let row = 0; row < BOARD_HEIGHT; row++) {
                 grid[row] = Array(BOARD_WIDTH).fill(0);
             }
-        }
-        
-        // Handle AR session start
-        async function onSessionStart() {
-            const session = renderer.xr.getSession();
-            
-            // Request hit test source
-            const referenceSpace = await session.requestReferenceSpace('viewer');
-            hitTestSource = await session.requestHitTestSource({ space: referenceSpace });
-            
-            // Setup select event for placing board
-            session.addEventListener('select', placeGameBoard);
-            
-            // Update UI
-            arButton.style.display = 'none';
-            placementHint.style.display = 'block';
-        }
-        
-        // Handle AR session end
-        function onSessionEnd() {
-            // Cleanup game state
-            resetGameState();
-            location.reload();
         }
         
         // Reset game state
@@ -332,84 +618,15 @@
             resetGrid();
             
             // Update UI
-            document.getElementById('score').textContent = '0';
-            document.getElementById('level').textContent = '1';
+            scoreElement.textContent = '0';
+            levelElement.textContent = '1';
             gameOverScreen.style.display = 'none';
-        }
-        
-        // Initialize audio
-        function initAudio() {
-            const bgm = document.getElementById('bgm');
-            bgm.volume = 0.3;
-            
-            // Attempt to play and pause to unlock audio on mobile
-            bgm.play().then(() => {
-                bgm.pause();
-                audioEnabled = true;
-            }).catch(e => {
-                console.log("Audio initialization failed:", e);
-            });
-        }
-        
-        // Play sound effect
-        function playSound(id) {
-            if (!audioEnabled) return;
-            const sfx = document.getElementById(id);
-            if (sfx) {
-                sfx.currentTime = 0;
-                sfx.play().catch(e => console.log("SFX error:", e));
-            }
-        }
-        
-        // Handle window resize
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-        
-        // Main animation loop
-        function animate(timestamp, frame) {
-            if (frame && hitTestSource) {
-                const hitTestResults = frame.getHitTestResults(hitTestSource);
-                
-                if (hitTestResults.length > 0 && !gameActive) {
-                    const hit = hitTestResults[0];
-                    const referenceSpace = renderer.xr.getReferenceSpace();
-                    const pose = hit.getPose(referenceSpace);
-                    
-                    // Update placement grid position
-                    placementGrid.matrix.fromArray(pose.transform.matrix);
-                    placementGrid.visible = true;
-                }
-            }
-            
-            renderer.render(scene, camera);
-        }
-        
-        // Place the game board in AR space
-        function placeGameBoard() {
-            if (gameActive) return;
-            
-            // Position game board at placement grid
-            gameBoard.matrix.copy(placementGrid.matrix);
-            
-            // Center the board vertically
-            gameBoard.position.y += BOARD_SIZE / 2;
-            
-            // Add game board to scene
-            scene.add(gameBoard);
-            
-            // Hide placement grid
-            placementGrid.visible = false;
-            placementHint.style.display = 'none';
-            
-            // Start the game
-            startGame();
+            controlsHint.style.display = 'none';
         }
         
         // Start the game
         function startGame() {
+            console.log("Starting game");
             gameActive = true;
             
             // Initialize next piece
@@ -426,40 +643,41 @@
                 }
             }, LEVEL_SPEEDS[level - 1]);
             
+            // Show controls hint
+            controlsHint.style.display = 'block';
+            
             // Play background music
-            if (audioEnabled) {
-                document.getElementById('bgm').play().catch(e => console.log("BGM error:", e));
-            }
+            playSound('bgm');
         }
         
         // Render next piece preview
         function renderNextPiece() {
-            const canvas = document.getElementById('next-piece');
-            const ctx = canvas.getContext('2d');
-            
-            // Clear canvas
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            nextPieceCtx.clearRect(0, 0, nextPieceCanvas.width, nextPieceCanvas.height);
             
             // Get shape information
             const shape = SHAPES[nextPieceType][0];
             const color = COLORS[nextPieceType];
+            const hexColor = `#${color.toString(16).padStart(6, '0')}`;
             
             // Calculate block size
             const blockSize = Math.min(
-                canvas.width / (shape[0].length + 2),
-                canvas.height / (shape.length + 2)
+                nextPieceCanvas.width / (shape[0].length + 2),
+                nextPieceCanvas.height / (shape.length + 2)
             );
             
             // Calculate offset to center shape
-            const offsetX = (canvas.width - shape[0].length * blockSize) / 2;
-            const offsetY = (canvas.height - shape.length * blockSize) / 2;
+            const offsetX = (nextPieceCanvas.width - shape[0].length * blockSize) / 2;
+            const offsetY = (nextPieceCanvas.height - shape.length * blockSize) / 2;
             
-            // Draw shape
-            ctx.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
+            // Draw shape with glow effect
+            nextPieceCtx.shadowColor = hexColor;
+            nextPieceCtx.shadowBlur = 10;
+            nextPieceCtx.fillStyle = hexColor;
+            
             for (let row = 0; row < shape.length; row++) {
                 for (let col = 0; col < shape[row].length; col++) {
                     if (shape[row][col]) {
-                        ctx.fillRect(
+                        nextPieceCtx.fillRect(
                             offsetX + col * blockSize,
                             offsetY + row * blockSize,
                             blockSize - 2,
@@ -468,6 +686,9 @@
                     }
                 }
             }
+            
+            // Reset shadow
+            nextPieceCtx.shadowBlur = 0;
         }
         
         // Spawn a new piece
@@ -527,7 +748,7 @@
             currentPiece = piece;
             
             // Check if game over (piece can't be placed)
-            if (!isValidMove(piece, 0, 0)) {
+            if (!isValidMove(currentPiece, 0, 0)) {
                 gameOver();
             }
         }
@@ -572,7 +793,9 @@
                         }
                         
                         // Check if collides with placed blocks
-                        if (boardY >= 0 && grid[boardY][boardX] !== 0) {
+                        if (boardY >= 0 && boardY < BOARD_HEIGHT &&
+                            boardX >= 0 && boardX < BOARD_WIDTH && 
+                            grid[boardY][boardX] !== 0) {
                             return false;
                         }
                     }
@@ -624,45 +847,19 @@
             
             // Process line clears
             if (linesCleared > 0) {
-                playSound('clear-sfx');
+                playSound('clear');
                 
                 // Score calculation
                 const lineScores = [0, 100, 300, 500, 800];
                 score += lineScores[linesCleared] * level;
                 
                 // Update score display
-                document.getElementById('score').textContent = score.toString();
-                
-                // Remove complete rows
-                rowsToRemove.sort((a, b) => a - b);
-                for (const rowIndex of rowsToRemove) {
-                    // Remove row from grid
-                    grid.splice(rowIndex, 1);
-                    grid.unshift(Array(BOARD_WIDTH).fill(0));
-                    
-                    // Remove corresponding blocks from game board
-                    for (let i = gameBoard.children.length - 1; i >= 0; i--) {
-                        const child = gameBoard.children[i];
-                        if (child !== currentPiece) {
-                            // Calculate the row of this block
-                            const blockY = BOARD_HEIGHT - 1 - Math.floor(
-                                (child.position.y + BOARD_HEIGHT * BLOCK_SIZE / 2) / BLOCK_SIZE
-                            );
-                            
-                            if (Math.abs(blockY - rowIndex) < 0.5) {
-                                gameBoard.remove(child);
-                            } else if (blockY < rowIndex) {
-                                // Move blocks above down
-                                child.position.y += BLOCK_SIZE;
-                            }
-                        }
-                    }
-                }
+                scoreElement.textContent = score.toString();
                 
                 // Level up if score threshold reached
                 if (score >= level * 2000 && level < LEVEL_SPEEDS.length) {
                     level++;
-                    document.getElementById('level').textContent = level.toString();
+                    levelElement.textContent = level.toString();
                     
                     // Update game speed
                     clearInterval(gameLoopInterval);
@@ -677,56 +874,143 @@
         
         // Game over handler
         function gameOver() {
+            console.log("Game Over");
             gameActive = false;
             clearInterval(gameLoopInterval);
             
-            // Stop background music
-            document.getElementById('bgm').pause();
-            
             // Play game over sound
-            playSound('gameover-sfx');
+            playSound('gameover');
             
             // Show game over screen
             finalScoreElement.textContent = score.toString();
             gameOverScreen.style.display = 'block';
+            controlsHint.style.display = 'none';
         }
         
         // Restart game
         function restartGame() {
+            console.log("Restarting game");
             resetGameState();
             startGame();
         }
         
-        // Handle touch inputs for controls
-        function handleTouch(event) {
+        // Touch control variables
+        let touchStartX, touchStartY;
+        let touchStartTime;
+        const TAP_THRESHOLD = 5; // Max movement to consider as tap
+        const SWIPE_THRESHOLD = 50; // Min swipe distance
+        
+        // Handle touch start
+        function handleTouchStart(event) {
+            if (!gameActive) return;
+            touchStartX = event.touches[0].clientX;
+            touchStartY = event.touches[0].clientY;
+            touchStartTime = Date.now();
+        }
+        
+        // Handle touch move
+        function handleTouchMove(event) {
+            if (!gameActive) return;
+            event.preventDefault();
+        }
+        
+        // Handle touch end
+        function handleTouchEnd(event) {
             if (!gameActive || !currentPiece) return;
             
-            event.preventDefault();
-            const touch = event.touches[0];
+            const touch = event.changedTouches[0];
+            const endX = touch.clientX;
+            const endY = touch.clientY;
+            const deltaX = endX - touchStartX;
+            const deltaY = endY - touchStartY;
+            const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            const duration = Date.now() - touchStartTime;
             const screenWidth = window.innerWidth;
-            const touchX = touch.clientX;
             
-            // Left side (move left)
-            if (touchX < screenWidth * 0.3) {
-                if (isValidMove(currentPiece, -1, 0)) {
-                    currentPiece.userData.position.x -= 1;
-                    updatePiecePosition(currentPiece);
-                    playSound('move-sfx');
+            // Handle tap
+            if (distance < TAP_THRESHOLD && duration < 300) {
+                const tapX = endX / screenWidth;
+                
+                // Left side tap (move left)
+                if (tapX < 0.4) {
+                    if (isValidMove(currentPiece, -1, 0)) {
+                        currentPiece.userData.position.x -= 1;
+                        updatePiecePosition(currentPiece);
+                        playSound('move');
+                    }
+                }
+                // Right side tap (move right)
+                else if (tapX > 0.6) {
+                    if (isValidMove(currentPiece, 1, 0)) {
+                        currentPiece.userData.position.x += 1;
+                        updatePiecePosition(currentPiece);
+                        playSound('move');
+                    }
+                }
+                // Center tap (rotate)
+                else {
+                    // Placeholder for rotation function
+                    playSound('move');
                 }
             }
-            // Right side (move right)
-            else if (touchX > screenWidth * 0.7) {
-                if (isValidMove(currentPiece, 1, 0)) {
-                    currentPiece.userData.position.x += 1;
+            // Handle swipe down
+            else if (deltaY > SWIPE_THRESHOLD && Math.abs(deltaX) < Math.abs(deltaY)) {
+                console.log("Hard drop");
+                while (isValidMove(currentPiece, 0, 1)) {
+                    currentPiece.userData.position.y += 1;
                     updatePiecePosition(currentPiece);
-                    playSound('move-sfx');
+                }
+                lockPiece();
+                spawnPiece();
+                playSound('drop');
+            }
+        }
+        
+        // Handle window resize
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        // Main animation loop
+        function animate(timestamp, frame) {
+            if (frame && hitTestSource) {
+                const hitTestResults = frame.getHitTestResults(hitTestSource);
+                
+                if (hitTestResults.length > 0 && !gameActive) {
+                    const hit = hitTestResults[0];
+                    const referenceSpace = renderer.xr.getReferenceSpace();
+                    const pose = hit.getPose(referenceSpace);
+                    
+                    // Update placement grid position
+                    placementGrid.matrix.fromArray(pose.transform.matrix);
+                    placementGrid.visible = true;
                 }
             }
-            // Center (rotate)
-            else {
-                // Placeholder for rotation function
-                playSound('move-sfx');
-            }
+            
+            renderer.render(scene, camera);
+        }
+        
+        // Place the game board in AR space
+        function placeGameBoard() {
+            if (gameActive) return;
+            
+            // Position game board at placement grid
+            gameBoard.matrix.copy(placementGrid.matrix);
+            
+            // Center the board vertically
+            gameBoard.position.y += BOARD_SIZE / 2;
+            
+            // Add game board to scene
+            scene.add(gameBoard);
+            
+            // Hide placement grid
+            placementGrid.visible = false;
+            placementHint.style.display = 'none';
+            
+            // Start the game
+            startGame();
         }
         
         // Start the game initialization
