@@ -23,8 +23,7 @@
             color: white;
         }
 
-        /* Initial Screen */
-        #initial-screen {
+        #game-container {
             position: fixed;
             top: 0;
             left: 0;
@@ -34,9 +33,42 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 20px;
+        }
+
+        #camera-feed {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 1;
+            display: none;
+        }
+
+        #game-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            display: none;
+        }
+
+        #permission-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
             background: rgba(10, 10, 20, 0.95);
-            z-index: 1000;
+            z-index: 10;
+            padding: 20px;
             text-align: center;
         }
 
@@ -80,11 +112,11 @@
             font-weight: 600;
             cursor: pointer;
             margin-top: 20px;
-            transition: all 0.3s ease;
-            box-shadow: 0 8px 25px rgba(37, 117, 252, 0.7);
             display: flex;
             align-items: center;
             gap: 12px;
+            box-shadow: 0 8px 25px rgba(37, 117, 252, 0.7);
+            transition: all 0.3s ease;
         }
 
         #start-btn:hover {
@@ -92,192 +124,9 @@
             box-shadow: 0 12px 30px rgba(37, 117, 252, 0.9);
         }
 
-        /* Permission Screen */
-        #permission-screen {
+        .game-ui {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            background: rgba(10, 10, 20, 0.95);
-            z-index: 1001;
-            display: none;
-        }
-
-        .permission-card {
-            background: rgba(30, 30, 50, 0.95);
-            padding: 40px;
-            border-radius: 25px;
-            max-width: 500px;
-            width: 90%;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
-            border: 1px solid rgba(100, 150, 255, 0.3);
-            text-align: center;
-        }
-
-        .permission-icon {
-            font-size: 70px;
-            color: #6a11cb;
-            margin-bottom: 25px;
-        }
-
-        .permission-card h2 {
-            font-size: 28px;
-            margin-bottom: 25px;
-            color: #ffffff;
-        }
-
-        .permission-card p {
-            font-size: 18px;
-            margin-bottom: 30px;
-            color: #ccccff;
-            line-height: 1.6;
-        }
-
-        .permission-steps {
-            background: rgba(40, 40, 60, 0.7);
-            padding: 20px;
-            border-radius: 15px;
-            margin: 20px 0;
-            text-align: left;
-        }
-
-        .permission-steps li {
-            margin-bottom: 15px;
-            padding-left: 10px;
-            line-height: 1.5;
-            color: #ffffff;
-        }
-
-        .step-number {
-            display: inline-block;
-            width: 26px;
-            height: 26px;
-            background: #6a11cb;
-            color: white;
-            border-radius: 50%;
-            text-align: center;
-            line-height: 26px;
-            margin-right: 10px;
-        }
-
-        #grant-permission-btn {
-            background: linear-gradient(135deg, #6a11cb, #2575fc);
-            color: white;
-            border: none;
-            padding: 16px 40px;
-            border-radius: 30px;
-            font-size: 18px;
-            font-weight: 600;
-            cursor: pointer;
-            margin-top: 20px;
-            transition: transform 0.3s ease;
-            box-shadow: 0 8px 20px rgba(37, 117, 252, 0.6);
-        }
-
-        #grant-permission-btn:hover {
-            transform: scale(1.05);
-        }
-
-        /* Camera Feed */
-        #camera-feed {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            z-index: 1;
-            display: none;
-        }
-
-        /* AR Scanning UI */
-        #scanning-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 2;
-            display: none;
-            pointer-events: none;
-        }
-
-        .scanning-grid {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            background-image: 
-                linear-gradient(rgba(100, 150, 255, 0.1) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(100, 150, 255, 0.1) 1px, transparent 1px);
-            background-size: 50px 50px;
-        }
-
-        .scanning-indicator {
-            position: absolute;
-            bottom: 30%;
-            left: 50%;
-            transform: translateX(-50%);
-            text-align: center;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 15px 30px;
-            border-radius: 30px;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(100, 150, 255, 0.3);
-            font-size: 18px;
-        }
-
-        /* AR Activation Guide */
-        #ar-activation-guide {
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.8);
-            padding: 20px;
-            border-radius: 15px;
-            text-align: center;
-            z-index: 1002;
-            display: none;
-            width: 90%;
-            max-width: 400px;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(100, 150, 255, 0.3);
-        }
-
-        #ar-icon-demo {
-            width: 50px;
-            height: 50px;
-            background: #6a11cb;
-            border-radius: 50%;
-            margin: 15px auto;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: bold;
-            font-size: 24px;
-            box-shadow: 0 0 20px rgba(106, 17, 203, 0.7);
-        }
-
-        /* Game UI */
-        #game-ui {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
             z-index: 3;
-            pointer-events: none;
-            display: none;
-        }
-
-        .game-panel {
             background: rgba(25, 25, 45, 0.9);
             padding: 12px 20px;
             border-radius: 12px;
@@ -288,186 +137,148 @@
         }
 
         #score-display {
-            position: fixed;
             top: 20px;
             right: 20px;
             font-size: 18px;
         }
 
         #level-display {
-            position: fixed;
             top: 20px;
             left: 20px;
             font-size: 18px;
         }
 
         #next-piece-container {
-            position: fixed;
             top: 20px;
             left: 50%;
             transform: translateX(-50%);
             width: 80px;
             height: 80px;
-            background: rgba(25, 25, 45, 0.9);
-            border-radius: 15px;
             display: flex;
             align-items: center;
             justify-content: center;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(100, 150, 255, 0.3);
         }
 
-        #next-piece-canvas {
-            width: 60px;
-            height: 60px;
+        #controls-info {
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 16px;
+            text-align: center;
+            max-width: 90%;
+            padding: 12px 25px;
         }
 
-        #controls-container {
-            position: fixed;
+        #ar-status {
             bottom: 100px;
             left: 50%;
             transform: translateX(-50%);
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            grid-template-rows: auto auto;
-            gap: 15px;
-            z-index: 1001;
-            pointer-events: auto;
+            background: rgba(0, 0, 0, 0.8);
+            color: #ff9900;
+            padding: 12px 25px;
+            border-radius: 30px;
+            display: none;
+            text-align: center;
         }
 
-        .control-btn {
-            width: 70px;
-            height: 70px;
-            background: rgba(25, 25, 45, 0.9);
-            border: 1px solid rgba(100, 150, 255, 0.3);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 28px;
-            color: white;
-            backdrop-filter: blur(10px);
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-            cursor: pointer;
-            transition: transform 0.1s;
-            pointer-events: auto;
-        }
-
-        .control-btn:active {
-            transform: scale(0.9);
-            background: rgba(100, 150, 255, 0.3);
-        }
-
-        #left-btn { grid-area: 2 / 1; }
-        #down-btn { grid-area: 2 / 2; }
-        #right-btn { grid-area: 2 / 3; }
-        #rotate-btn { grid-area: 1 / 2; }
-
-        #game-board {
-            position: absolute;
+        #touch-overlay {
+            position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: 2;
+            z-index: 4;
+            display: none;
         }
 
-        /* Responsive */
+        .control-zone {
+            position: absolute;
+            height: 100%;
+            opacity: 0.3;
+        }
+
+        #left-zone {
+            left: 0;
+            width: 30%;
+            background: #2575fc;
+        }
+
+        #middle-zone {
+            left: 30%;
+            width: 40%;
+            background: #6a11cb;
+        }
+
+        #right-zone {
+            left: 70%;
+            width: 30%;
+            background: #00c9ff;
+        }
+
         @media (max-width: 767px) {
-            .permission-card {
-                padding: 25px;
-            }
-            
-            .permission-icon {
-                font-size: 50px;
-            }
-            
             h1 {
                 font-size: 36px;
             }
             
-            .control-btn {
-                width: 60px;
-                height: 60px;
-                font-size: 24px;
+            #start-btn {
+                padding: 16px 40px;
+                font-size: 18px;
+            }
+            
+            .game-ui {
+                padding: 10px 15px;
+                font-size: 16px;
+            }
+            
+            #next-piece-container {
+                width: 70px;
+                height: 70px;
             }
         }
     </style>
 </head>
 <body>
-    <!-- Initial Screen -->
-    <div id="initial-screen">
-        <div class="logo">
-            <i class="fas fa-cubes"></i>
+    <div id="game-container">
+        <video id="camera-feed" autoplay playsinline></video>
+        <canvas id="game-canvas"></canvas>
+        
+        <div id="score-display" class="game-ui">SCORE: <span id="score">0</span></div>
+        <div id="level-display" class="game-ui">LEVEL: <span id="level">1</span></div>
+        <div id="next-piece-container" class="game-ui">
+            <canvas id="next-piece-canvas" width="100" height="100"></canvas>
         </div>
-        <h1>AR TETRIS PRO</h1>
-        <p class="subtitle">Experience Tetris like never before with augmented reality technology. Place the game board on any flat surface and play in your real environment!</p>
-        <button id="start-btn">
-            <i class="fas fa-play"></i> START GAME
-        </button>
-    </div>
-
-    <!-- Permission Screen -->
-    <div id="permission-screen">
-        <div class="permission-card">
-            <div class="permission-icon">
-                <i class="fas fa-camera"></i>
+        
+        <div id="controls-info" class="game-ui">
+            <i class="fas fa-arrows-left-right"></i> Tap sides to move | 
+            <i class="fas fa-sync"></i> Tap center to rotate | 
+            <i class="fas fa-arrow-down"></i> Swipe down to drop
+        </div>
+        
+        <div id="ar-status">
+            <i class="fas fa-info-circle"></i> Scanning surfaces...
+        </div>
+        
+        <div id="touch-overlay">
+            <div id="left-zone" class="control-zone"></div>
+            <div id="middle-zone" class="control-zone"></div>
+            <div id="right-zone" class="control-zone"></div>
+        </div>
+        
+        <!-- Initial Permission Screen -->
+        <div id="permission-screen">
+            <div class="logo">
+                <i class="fas fa-cubes"></i>
             </div>
-            <h2>AR Permissions Required</h2>
-            <p>To play AR Tetris, we need access to your camera for the augmented reality experience.</p>
-            
-            <ul class="permission-steps">
-                <li><span class="step-number">1</span> Click "Grant Permissions" below</li>
-                <li><span class="step-number">2</span> Allow camera access when prompted</li>
-                <li><span class="step-number">3</span> Look for the AR icon in your browser</li>
-                <li><span class="step-number">4</span> Enable "Augmented Reality" mode</li>
-            </ul>
-            
-            <button id="grant-permission-btn">
-                <i class="fas fa-check-circle"></i> GRANT PERMISSIONS
+            <h1>AR TETRIS PRO</h1>
+            <p class="subtitle">Experience Tetris like never before with augmented reality technology. Place the game board on any flat surface and play in your real environment!</p>
+            <button id="start-btn">
+                <i class="fas fa-play"></i> START GAME
             </button>
         </div>
     </div>
 
-    <!-- Camera Feed -->
-    <video id="camera-feed" autoplay playsinline></video>
-
-    <!-- AR Scanning Interface -->
-    <div id="scanning-overlay">
-        <div class="scanning-grid"></div>
-        <div class="scanning-indicator">
-            <i class="fas fa-sync fa-spin"></i> Scanning surfaces...
-        </div>
-    </div>
-
-    <!-- AR Activation Guide -->
-    <div id="ar-activation-guide">
-        <div id="ar-icon-demo">AR</div>
-        <h3>Enable AR Mode</h3>
-        <p>Tap the AR icon in your address bar<br>and select "Augmented Reality"</p>
-    </div>
-
-    <!-- Game UI -->
-    <div id="game-ui">
-        <div id="score-display" class="game-panel">SCORE: <span id="score">0</span></div>
-        <div id="level-display" class="game-panel">LEVEL: <span id="level">1</span></div>
-        <div id="next-piece-container" class="game-panel">
-            <canvas id="next-piece-canvas" width="100" height="100"></canvas>
-        </div>
-        
-        <div id="controls-container">
-            <button id="rotate-btn" class="control-btn"><i class="fas fa-rotate"></i></button>
-            <button id="left-btn" class="control-btn"><i class="fas fa-arrow-left"></i></button>
-            <button id="down-btn" class="control-btn"><i class="fas fa-arrow-down"></i></button>
-            <button id="right-btn" class="control-btn"><i class="fas fa-arrow-right"></i></button>
-        </div>
-    </div>
-
-    <!-- Three.js Canvas -->
-    <canvas id="game-board"></canvas>
-
     <script>
-        // Constants for the game
+        // Game Constants
         const PIECE_COLORS = [
             '#00F0F0', // I - Cyan
             '#0000F0', // J - Blue
@@ -479,133 +290,164 @@
         ];
 
         const PIECE_SHAPES = [
-            [[1, 1, 1, 1]], // I
-            [[1, 0, 0], [1, 1, 1]], // J
-            [[0, 0, 1], [1, 1, 1]], // L
-            [[1, 1], [1, 1]], // O
-            [[0, 1, 1], [1, 1, 0]], // S
-            [[0, 1, 0], [1, 1, 1]], // T
-            [[1, 1, 0], [0, 1, 1]]  // Z
+            [[1,1,1,1]], // I
+            [[1,0,0],[1,1,1]], // J
+            [[0,0,1],[1,1,1]], // L
+            [[1,1],[1,1]], // O
+            [[0,1,1],[1,1,0]], // S
+            [[0,1,0],[1,1,1]], // T
+            [[1,1,0],[0,1,1]]  // Z
         ];
 
         // DOM Elements
-        const initialScreen = document.getElementById('initial-screen');
         const permissionScreen = document.getElementById('permission-screen');
         const startBtn = document.getElementById('start-btn');
-        const grantPermissionBtn = document.getElementById('grant-permission-btn');
         const cameraFeed = document.getElementById('camera-feed');
-        const scanningOverlay = document.getElementById('scanning-overlay');
-        const arActivationGuide = document.getElementById('ar-activation-guide');
-        const gameUI = document.getElementById('game-ui');
+        const gameCanvas = document.getElementById('game-canvas');
         const scoreElement = document.getElementById('score');
         const levelElement = document.getElementById('level');
         const nextPieceCanvas = document.getElementById('next-piece-canvas');
         const nextPieceCtx = nextPieceCanvas.getContext('2d');
-        
+        const arStatus = document.getElementById('ar-status');
+        const touchOverlay = document.getElementById('touch-overlay');
+
         // Game state
         let score = 0;
         let level = 1;
         let nextPieceType = 0;
         let gameActive = false;
         let cameraActive = false;
-        let arSessionActive = false;
-
+        let scene, camera, renderer;
+        let gameBoard = [];
+        let currentPiece = null;
+        let piecePosition = {x: 5, y: 0};
+        let gameSpeed = 1000; // ms per move
+        let lastMoveTime = 0;
+        
         // Initialize the game
         function initGame() {
             // Set up event listeners
-            startBtn.addEventListener('click', () => {
-                initialScreen.style.display = 'none';
-                permissionScreen.style.display = 'flex';
-            });
-
-            grantPermissionBtn.addEventListener('click', requestCameraPermission);
+            startBtn.addEventListener('click', requestCameraPermission);
+            
+            // Initialize Three.js scene
+            initThreeScene();
             
             // Initialize next piece preview
             initNextPiecePreview();
         }
 
-        // Request camera permission
-        async function requestCameraPermission() {
-            try {
-                // Request camera access
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { 
-                        facingMode: 'environment',
-                        width: { ideal: 1920 },
-                        height: { ideal: 1080 }
-                    } 
-                });
-                
-                // Show camera feed
-                cameraFeed.srcObject = stream;
-                cameraFeed.style.display = 'block';
-                cameraActive = true;
-                
-                // Hide permission screen
-                permissionScreen.style.display = 'none';
-                
-                // Show AR activation guide
-                arActivationGuide.style.display = 'block';
-                
-                // Start scanning visualization
-                scanningOverlay.style.display = 'block';
-                
-                // Simulate AR activation
-                setTimeout(() => {
-                    arSessionActive = true;
-                    startARExperience();
-                }, 3000);
-                
-            } catch (error) {
-                permissionScreen.innerHTML = `
-                    <div class="permission-card">
-                        <div class="permission-icon" style="color: #ff5555;">
-                            <i class="fas fa-exclamation-triangle"></i>
-                        </div>
-                        <h2>Camera Access Required</h2>
-                        <p>Could not access camera: ${error.message}</p>
-                        <p>Please check your browser settings and reload.</p>
-                        <button id="retry-btn" style="margin-top: 20px; padding: 12px 30px; background: #ff5555; color: white; border: none; border-radius: 30px; cursor: pointer;">
-                            Retry
-                        </button>
-                    </div>
-                `;
-                
-                document.getElementById('retry-btn').addEventListener('click', () => {
-                    location.reload();
-                });
-            }
+        // Initialize Three.js scene
+        function initThreeScene() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            
+            renderer = new THREE.WebGLRenderer({
+                canvas: gameCanvas,
+                antialias: true,
+                alpha: true
+            });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            
+            // Position camera
+            camera.position.z = 30;
+            camera.position.y = 15;
+            
+            // Add lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(1, 1, 1);
+            scene.add(directionalLight);
+            
+            // Create game grid
+            createGameGrid();
+            
+            // Start animation loop
+            animate();
         }
-
-        // Start AR experience
-        function startARExperience() {
-            if (!cameraActive) return;
+        
+        // Create visual game grid
+        function createGameGrid() {
+            const gridHelper = new THREE.GridHelper(20, 10, 0x444444, 0x222222);
+            gridHelper.position.y = -10;
+            scene.add(gridHelper);
             
-            // Hide AR activation guide
-            arActivationGuide.style.display = 'none';
+            // Create walls
+            const wallGeometry = new THREE.BoxGeometry(1, 20, 20);
+            const wallMaterial = new THREE.MeshPhongMaterial({ color: 0x888888, transparent: true, opacity: 0.5 });
             
-            // Start floor scanning simulation
-            let scanProgress = 0;
-            const scanInterval = setInterval(() => {
-                scanProgress += 10;
-                document.querySelector('.scanning-indicator').innerHTML = `
-                    <i class="fas fa-sync fa-spin"></i> Scanning surfaces... ${scanProgress}%
-                `;
-                
-                if (scanProgress >= 100) {
-                    clearInterval(scanInterval);
-                    setTimeout(() => {
-                        scanningOverlay.style.display = 'none';
-                        startGame();
-                    }, 1000);
-                }
-            }, 500);
+            const leftWall = new THREE.Mesh(wallGeometry, wallMaterial);
+            leftWall.position.set(-10.5, 0, 0);
+            scene.add(leftWall);
+            
+            const rightWall = new THREE.Mesh(wallGeometry, wallMaterial);
+            rightWall.position.set(10.5, 0, 0);
+            scene.add(rightWall);
+            
+            const backWall = new THREE.Mesh(new THREE.BoxGeometry(21, 20, 1), wallMaterial);
+            backWall.position.set(0, 0, -10.5);
+            scene.add(backWall);
+        }
+        
+        // Create a new Tetris piece
+        function createNewPiece() {
+            const pieceType = nextPieceType;
+            nextPieceType = Math.floor(Math.random() * PIECE_SHAPES.length);
+            drawNextPiece();
+            
+            const group = new THREE.Group();
+            const material = new THREE.MeshPhongMaterial({
+                color: PIECE_COLORS[pieceType],
+                shininess: 100
+            });
+            
+            PIECE_SHAPES[pieceType].forEach((row, y) => {
+                row.forEach((value, x) => {
+                    if (value) {
+                        const geometry = new THREE.BoxGeometry(0.9, 0.9, 0.9);
+                        const cube = new THREE.Mesh(geometry, material);
+                        cube.position.set(x - 1, 0, y - 1);
+                        group.add(cube);
+                    }
+                });
+            });
+            
+            group.position.x = piecePosition.x;
+            group.position.z = piecePosition.y;
+            group.position.y = 10; // Start above the board
+            
+            scene.add(group);
+            currentPiece = group;
+        }
+        
+        // Move the current piece
+        function movePiece(direction) {
+            if (!currentPiece || !gameActive) return;
+            
+            if (direction === 'left') {
+                if (piecePosition.x > 0) piecePosition.x--;
+            } else if (direction === 'right') {
+                if (piecePosition.x < 9) piecePosition.x++;
+            } else if (direction === 'rotate') {
+                currentPiece.rotation.y += Math.PI / 2;
+                return;
+            }
+            
+            currentPiece.position.x = piecePosition.x;
+        }
+        
+        // Drop the piece faster
+        function dropPiece() {
+            piecePosition.y++;
+            if (currentPiece) {
+                currentPiece.position.z = piecePosition.y;
+            }
         }
 
         // Initialize next piece preview
         function initNextPiecePreview() {
             nextPieceCtx.clearRect(0, 0, nextPieceCanvas.width, nextPieceCanvas.height);
-            nextPieceType = Math.floor(Math.random() * PIECE_SHAPES.length);
             drawNextPiece();
         }
 
@@ -648,64 +490,165 @@
             });
         }
 
-        // Start the game
-        function startGame() {
-            gameUI.style.display = 'block';
-            gameActive = true;
-            
-            // Create falling blocks effect
-            function createFallingBlock() {
-                if (!gameActive) return;
-                
-                const block = document.createElement('div');
-                block.style.position = 'fixed';
-                block.style.top = '-50px';
-                block.style.left = Math.random() * 100 + 'vw';
-                block.style.width = '30px';
-                block.style.height = '30px';
-                block.style.backgroundColor = PIECE_COLORS[Math.floor(Math.random() * PIECE_COLORS.length)];
-                block.style.borderRadius = '4px';
-                block.style.boxShadow = '0 0 10px currentColor';
-                block.style.zIndex = '600';
-                document.body.appendChild(block);
-                
-                // Animation
-                const animation = block.animate([
-                    { top: '-50px', opacity: 1 },
-                    { top: '100vh', opacity: 0.5 }
-                ], {
-                    duration: Math.random() * 3000 + 2000,
-                    easing: 'linear'
+        // Request camera permission
+        async function requestCameraPermission() {
+            try {
+                // Request camera access
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: 'environment',
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    } 
                 });
                 
-                animation.onfinish = () => {
-                    block.remove();
-                };
+                // Show camera feed
+                cameraFeed.srcObject = stream;
+                cameraFeed.style.display = 'block';
+                cameraActive = true;
                 
-                setTimeout(createFallingBlock, Math.random() * 500);
+                // Hide permission screen
+                permissionScreen.style.display = 'none';
+                
+                // Show AR scanning status
+                arStatus.style.display = 'block';
+                
+                // Setup touch controls
+                touchOverlay.style.display = 'block';
+                
+                setTimeout(() => {
+                    startARExperience();
+                }, 2000);
+                
+            } catch (error) {
+                permissionScreen.innerHTML = `
+                    <div class="logo" style="background: #ff5555;">
+                        <i class="fas fa-exclamation"></i>
+                    </div>
+                    <h2>Camera Access Required</h2>
+                    <p class="subtitle">Could not access camera: ${error.message}</p>
+                    <p class="subtitle">Please check your browser settings and try again.</p>
+                    <button id="retry-btn" style="margin-top: 30px; padding: 16px 40px; background: #ff5555; color: white; border: none; border-radius: 30px; font-size: 18px; cursor: pointer;">
+                        <i class="fas fa-redo"></i> TRY AGAIN
+                    </button>
+                `;
+                
+                document.getElementById('retry-btn').addEventListener('click', () => {
+                    location.reload();
+                });
+            }
+        }
+
+        // Start AR experience
+        function startARExperience() {
+            if (!cameraActive) return;
+            
+            // Show game canvas
+            gameCanvas.style.display = 'block';
+            
+            // Start the game
+            startGame();
+        }
+
+        // Start the game
+        function startGame() {
+            gameActive = true;
+            
+            // Create the first piece
+            createNewPiece();
+            
+            // Initial score display
+            updateScore();
+            
+            // Set up touch controls
+            setupTouchControls();
+            
+            // Start game loop
+            lastMoveTime = Date.now();
+        }
+        
+        // Update game state
+        function update() {
+            if (!gameActive) return;
+            
+            const currentTime = Date.now();
+            if (currentTime - lastMoveTime > gameSpeed) {
+                piecePosition.y++;
+                if (currentPiece) {
+                    currentPiece.position.z = piecePosition.y;
+                }
+                lastMoveTime = currentTime;
             }
             
-            createFallingBlock();
+            // Check if piece reached bottom
+            if (piecePosition.y >= 19) {
+                // Place the piece and create new one
+                piecePosition = {x: 5, y: 0};
+                createNewPiece();
+                score += 10;
+                updateScore();
+            }
+        }
+        
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            update();
+            renderer.render(scene, camera);
+        }
+        
+        // Update score display
+        function updateScore() {
+            scoreElement.textContent = score;
             
-            // Score updating
-            setInterval(() => {
-                if (gameActive) {
-                    score += 10;
-                    scoreElement.textContent = score;
-                    
-                    if (score % 100 === 0) {
-                        level++;
-                        levelElement.textContent = level;
-                    }
-                }
-            }, 1000);
+            if (score > 0 && score % 100 === 0) {
+                level++;
+                levelElement.textContent = level;
+                gameSpeed = Math.max(200, 1000 - (level * 50)); // Increase speed with level
+            }
+        }
+        
+        // Set up touch controls
+        function setupTouchControls() {
+            let touchStartY = 0;
+            let touchStartTime = 0;
             
-            // Change next piece periodically
-            setInterval(() => {
-                if (gameActive) {
-                    initNextPiecePreview();
+            touchOverlay.addEventListener('touchstart', (e) => {
+                touchStartY = e.touches[0].clientY;
+                touchStartTime = Date.now();
+            });
+            
+            touchOverlay.addEventListener('touchend', (e) => {
+                const zoneWidth = window.innerWidth / 3;
+                const touchX = e.changedTouches[0].clientX;
+                
+                if (touchX < zoneWidth) {
+                    movePiece('left');
+                } else if (touchX > zoneWidth * 2) {
+                    movePiece('right');
+                } else {
+                    movePiece('rotate');
                 }
-            }, 3000);
+                
+                // Check for swipe down
+                const touchEndY = e.changedTouches[0].clientY;
+                if (touchEndY - touchStartY > 50 && Date.now() - touchStartTime < 300) {
+                    dropPiece();
+                }
+            });
+            
+            // Mouse controls for desktop testing
+            touchOverlay.addEventListener('click', (e) => {
+                const zoneWidth = window.innerWidth / 3;
+                
+                if (e.clientX < zoneWidth) {
+                    movePiece('left');
+                } else if (e.clientX > zoneWidth * 2) {
+                    movePiece('right');
+                } else {
+                    movePiece('rotate');
+                }
+            });
         }
 
         // Initialize the game when page loads
