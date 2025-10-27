@@ -4,14 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>AR Tetris Pro</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
             touch-action: none;
+            user-select: none;
         }
 
         body, html {
@@ -33,31 +32,31 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
+            z-index: 1;
         }
 
         #camera-feed {
-            position: fixed;
+            position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
             object-fit: cover;
             z-index: 1;
-            display: none;
         }
 
         #game-canvas {
-            position: fixed;
+            position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
             z-index: 2;
-            display: none;
         }
 
-        #permission-screen {
-            position: fixed;
+        /* Screens */
+        .screen {
+            position: absolute;
             top: 0;
             left: 0;
             width: 100%;
@@ -70,6 +69,12 @@
             z-index: 10;
             padding: 20px;
             text-align: center;
+            transition: opacity 0.5s ease;
+        }
+
+        /* Welcome Screen */
+        #welcome-screen {
+            z-index: 15;
         }
 
         .logo {
@@ -102,7 +107,7 @@
             line-height: 1.6;
         }
 
-        #start-btn {
+        .btn {
             background: linear-gradient(135deg, #6a11cb, #2575fc);
             color: white;
             border: none;
@@ -111,7 +116,6 @@
             font-size: 20px;
             font-weight: 600;
             cursor: pointer;
-            margin-top: 20px;
             display: flex;
             align-items: center;
             gap: 12px;
@@ -119,11 +123,67 @@
             transition: all 0.3s ease;
         }
 
-        #start-btn:hover {
+        .btn:hover {
             transform: scale(1.05);
             box-shadow: 0 12px 30px rgba(37, 117, 252, 0.9);
         }
 
+        /* Scanning Screen */
+        #scanning-screen {
+            z-index: 12;
+            background: rgba(10, 10, 20, 0.85);
+            display: none;
+        }
+
+        .scan-mesh {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                radial-gradient(circle at center, rgba(100, 150, 255, 0.2) 0%, transparent 70%);
+        }
+
+        .scan-grid {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(100, 150, 255, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(100, 150, 255, 0.1) 1px, transparent 1px);
+            background-size: 50px 50px;
+        }
+
+        .scan-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 200px;
+            height: 200px;
+            border: 4px solid #2575fc;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: translate(-50%, -50%) scale(0.9); opacity: 0.7; }
+            50% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(0.9); opacity: 0.7; }
+        }
+
+        .scan-text {
+            margin-top: 250px;
+            font-size: 24px;
+            background: linear-gradient(90deg, #6a11cb, #00c9ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: bold;
+        }
+
+        /* Game UI */
         .game-ui {
             position: fixed;
             z-index: 3;
@@ -188,52 +248,25 @@
             width: 100%;
             height: 100%;
             z-index: 4;
-            display: none;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
         }
 
         .control-zone {
-            position: absolute;
             height: 100%;
             opacity: 0.3;
         }
 
         #left-zone {
-            left: 0;
-            width: 30%;
-            background: #2575fc;
+            background: linear-gradient(90deg, rgba(37, 117, 252, 0.4), transparent);
         }
 
         #middle-zone {
-            left: 30%;
-            width: 40%;
-            background: #6a11cb;
+            background: linear-gradient(90deg, transparent, rgba(106, 17, 203, 0.4), transparent);
         }
 
         #right-zone {
-            left: 70%;
-            width: 30%;
-            background: #00c9ff;
-        }
-
-        @media (max-width: 767px) {
-            h1 {
-                font-size: 36px;
-            }
-            
-            #start-btn {
-                padding: 16px 40px;
-                font-size: 18px;
-            }
-            
-            .game-ui {
-                padding: 10px 15px;
-                font-size: 16px;
-            }
-            
-            #next-piece-container {
-                width: 70px;
-                height: 70px;
-            }
+            background: linear-gradient(90deg, transparent, rgba(0, 201, 255, 0.4));
         }
     </style>
 </head>
@@ -242,38 +275,50 @@
         <video id="camera-feed" autoplay playsinline></video>
         <canvas id="game-canvas"></canvas>
         
-        <div id="score-display" class="game-ui">SCORE: <span id="score">0</span></div>
-        <div id="level-display" class="game-ui">LEVEL: <span id="level">1</span></div>
-        <div id="next-piece-container" class="game-ui">
-            <canvas id="next-piece-canvas" width="100" height="100"></canvas>
-        </div>
-        
-        <div id="controls-info" class="game-ui">
-            <i class="fas fa-arrows-left-right"></i> Tap sides to move | 
-            <i class="fas fa-sync"></i> Tap center to rotate | 
-            <i class="fas fa-arrow-down"></i> Swipe down to drop
-        </div>
-        
-        <div id="ar-status">
-            <i class="fas fa-info-circle"></i> Scanning surfaces...
-        </div>
-        
-        <div id="touch-overlay">
-            <div id="left-zone" class="control-zone"></div>
-            <div id="middle-zone" class="control-zone"></div>
-            <div id="right-zone" class="control-zone"></div>
-        </div>
-        
-        <!-- Initial Permission Screen -->
-        <div id="permission-screen">
+        <!-- Screens -->
+        <div id="welcome-screen" class="screen">
             <div class="logo">
                 <i class="fas fa-cubes"></i>
             </div>
             <h1>AR TETRIS PRO</h1>
             <p class="subtitle">Experience Tetris like never before with augmented reality technology. Place the game board on any flat surface and play in your real environment!</p>
-            <button id="start-btn">
+            <button id="start-btn" class="btn">
                 <i class="fas fa-play"></i> START GAME
             </button>
+        </div>
+        
+        <div id="scanning-screen" class="screen">
+            <div class="scan-mesh"></div>
+            <div class="scan-grid"></div>
+            <div class="scan-indicator">
+                <i class="fas fa-sync fa-spin fa-3x" style="color: #00c9ff;"></i>
+            </div>
+            <div class="scan-text">Scanning surfaces...</div>
+            <button id="cancel-scan-btn" class="btn" style="margin-top: 320px; background: rgba(255,0,0,0.3);">
+                <i class="fas fa-times"></i> Cancel
+            </button>
+        </div>
+        
+        <!-- Game UI -->
+        <div id="score-display" class="game-ui">SCORE: <span id="score">0</span></div>
+        <div id="level-display" class="game-ui">LEVEL: <span id="level">1</span></div>
+        <div id="next-piece-container" class="game-ui">
+            <canvas id="next-piece-canvas" width="100" height="100"></canvas>
+        </div>
+        <div id="controls-info" class="game-ui">
+            <i class="fas fa-arrows-left-right"></i> Tap sides to move | 
+            <i class="fas fa-sync"></i> Tap center to rotate | 
+            <i class="fas fa-arrow-down"></i> Swipe down to drop
+        </div>
+        <div id="ar-status" class="game-ui">
+            <i class="fas fa-info-circle"></i> Scanning surfaces...
+        </div>
+        
+        <!-- Touch Controls -->
+        <div id="touch-overlay">
+            <div id="left-zone" class="control-zone"></div>
+            <div id="middle-zone" class="control-zone"></div>
+            <div id="right-zone" class="control-zone"></div>
         </div>
     </div>
 
@@ -300,8 +345,10 @@
         ];
 
         // DOM Elements
-        const permissionScreen = document.getElementById('permission-screen');
+        const welcomeScreen = document.getElementById('welcome-screen');
+        const scanningScreen = document.getElementById('scanning-screen');
         const startBtn = document.getElementById('start-btn');
+        const cancelScanBtn = document.getElementById('cancel-scan-btn');
         const cameraFeed = document.getElementById('camera-feed');
         const gameCanvas = document.getElementById('game-canvas');
         const scoreElement = document.getElementById('score');
@@ -310,6 +357,7 @@
         const nextPieceCtx = nextPieceCanvas.getContext('2d');
         const arStatus = document.getElementById('ar-status');
         const touchOverlay = document.getElementById('touch-overlay');
+        const ctx = gameCanvas.getContext('2d');
 
         // Game state
         let score = 0;
@@ -317,137 +365,203 @@
         let nextPieceType = 0;
         let gameActive = false;
         let cameraActive = false;
-        let scene, camera, renderer;
+        let scanningActive = false;
         let gameBoard = [];
-        let currentPiece = null;
-        let piecePosition = {x: 5, y: 0};
+        let currentPiece = {};
+        let piecePosition = {x: 4, y: 0};
         let gameSpeed = 1000; // ms per move
         let lastMoveTime = 0;
+        let scanProgress = 0;
+        let scanInterval;
+        let gridSize = 20;
         
         // Initialize the game
         function initGame() {
+            // Set canvas size
+            gameCanvas.width = window.innerWidth;
+            gameCanvas.height = window.innerHeight;
+            
             // Set up event listeners
             startBtn.addEventListener('click', requestCameraPermission);
+            cancelScanBtn.addEventListener('click', () => {
+                scanningActive = false;
+                clearInterval(scanInterval);
+                scanningScreen.style.display = 'none';
+                welcomeScreen.style.display = 'flex';
+            });
             
-            // Initialize Three.js scene
-            initThreeScene();
+            // Initialize game board
+            initGameBoard();
             
             // Initialize next piece preview
             initNextPiecePreview();
-        }
-
-        // Initialize Three.js scene
-        function initThreeScene() {
-            scene = new THREE.Scene();
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            
-            renderer = new THREE.WebGLRenderer({
-                canvas: gameCanvas,
-                antialias: true,
-                alpha: true
-            });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            
-            // Position camera
-            camera.position.z = 30;
-            camera.position.y = 15;
-            
-            // Add lighting
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-            scene.add(ambientLight);
-            
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-            directionalLight.position.set(1, 1, 1);
-            scene.add(directionalLight);
-            
-            // Create game grid
-            createGameGrid();
             
             // Start animation loop
-            animate();
+            requestAnimationFrame(gameLoop);
         }
         
-        // Create visual game grid
-        function createGameGrid() {
-            const gridHelper = new THREE.GridHelper(20, 10, 0x444444, 0x222222);
-            gridHelper.position.y = -10;
-            scene.add(gridHelper);
-            
-            // Create walls
-            const wallGeometry = new THREE.BoxGeometry(1, 20, 20);
-            const wallMaterial = new THREE.MeshPhongMaterial({ color: 0x888888, transparent: true, opacity: 0.5 });
-            
-            const leftWall = new THREE.Mesh(wallGeometry, wallMaterial);
-            leftWall.position.set(-10.5, 0, 0);
-            scene.add(leftWall);
-            
-            const rightWall = new THREE.Mesh(wallGeometry, wallMaterial);
-            rightWall.position.set(10.5, 0, 0);
-            scene.add(rightWall);
-            
-            const backWall = new THREE.Mesh(new THREE.BoxGeometry(21, 20, 1), wallMaterial);
-            backWall.position.set(0, 0, -10.5);
-            scene.add(backWall);
+        // Initialize game board
+        function initGameBoard() {
+            gameBoard = [];
+            for (let i = 0; i < 20; i++) {
+                gameBoard.push(Array(10).fill(0));
+            }
         }
         
         // Create a new Tetris piece
         function createNewPiece() {
-            const pieceType = nextPieceType;
+            currentPiece = {
+                type: nextPieceType,
+                shape: JSON.parse(JSON.stringify(PIECE_SHAPES[nextPieceType])),
+                rotation: 0,
+                x: piecePosition.x,
+                y: piecePosition.y
+            };
+            
             nextPieceType = Math.floor(Math.random() * PIECE_SHAPES.length);
             drawNextPiece();
+        }
+        
+        // Draw the game board and pieces
+        function drawGame() {
+            // Clear canvas
+            ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
             
-            const group = new THREE.Group();
-            const material = new THREE.MeshPhongMaterial({
-                color: PIECE_COLORS[pieceType],
-                shininess: 100
-            });
+            // Draw game board
+            const cellSize = Math.min(
+                gameCanvas.width / (gridSize + 2),
+                gameCanvas.height / (gridSize + 2)
+            );
             
-            PIECE_SHAPES[pieceType].forEach((row, y) => {
-                row.forEach((value, x) => {
-                    if (value) {
-                        const geometry = new THREE.BoxGeometry(0.9, 0.9, 0.9);
-                        const cube = new THREE.Mesh(geometry, material);
-                        cube.position.set(x - 1, 0, y - 1);
-                        group.add(cube);
+            const boardWidth = 10 * cellSize;
+            const boardHeight = 20 * cellSize;
+            const boardX = (gameCanvas.width - boardWidth) / 2;
+            const boardY = (gameCanvas.height - boardHeight) / 2 + 50;
+            
+            // Draw board background
+            ctx.fillStyle = 'rgba(25, 25, 45, 0.7)';
+            ctx.fillRect(boardX - 10, boardY - 10, boardWidth + 20, boardHeight + 20);
+            
+            // Draw cells
+            for (let y = 0; y < 20; y++) {
+                for (let x = 0; x < 10; x++) {
+                    if (gameBoard[y][x]) {
+                        drawCell(x, y, gameBoard[y][x] - 1, ctx, boardX, boardY, cellSize);
                     }
-                });
-            });
+                }
+            }
             
-            group.position.x = piecePosition.x;
-            group.position.z = piecePosition.y;
-            group.position.y = 10; // Start above the board
+            // Draw current piece
+            if (currentPiece.shape) {
+                for (let y = 0; y < currentPiece.shape.length; y++) {
+                    for (let x = 0; x < currentPiece.shape[y].length; x++) {
+                        if (currentPiece.shape[y][x]) {
+                            const px = currentPiece.x + x;
+                            const py = currentPiece.y + y;
+                            
+                            if (py >= 0) {
+                                drawCell(px, py, currentPiece.type, ctx, boardX, boardY, cellSize);
+                            }
+                        }
+                    }
+                }
+            }
             
-            scene.add(group);
-            currentPiece = group;
+            // Draw grid lines
+            ctx.strokeStyle = 'rgba(100, 150, 255, 0.3)';
+            ctx.lineWidth = 1;
+            
+            for (let x = 0; x <= 10; x++) {
+                ctx.beginPath();
+                ctx.moveTo(boardX + x * cellSize, boardY);
+                ctx.lineTo(boardX + x * cellSize, boardY + boardHeight);
+                ctx.stroke();
+            }
+            
+            for (let y = 0; y <= 20; y++) {
+                ctx.beginPath();
+                ctx.moveTo(boardX, boardY + y * cellSize);
+                ctx.lineTo(boardX + boardWidth, boardY + y * cellSize);
+                ctx.stroke();
+            }
+        }
+        
+        // Draw a single cell
+        function drawCell(x, y, type, context, offsetX, offsetY, size) {
+            const color = PIECE_COLORS[type];
+            const padding = 2;
+            
+            context.fillStyle = color;
+            context.fillRect(
+                offsetX + x * size + padding,
+                offsetY + y * size + padding,
+                size - padding * 2,
+                size - padding * 2
+            );
+            
+            // Add 3D effect
+            context.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            context.fillRect(
+                offsetX + x * size + padding,
+                offsetY + y * size + padding,
+                size - padding * 2,
+                4
+            );
+            
+            context.fillStyle = 'rgba(0, 0, 0, 0.2)';
+            context.fillRect(
+                offsetX + x * size + padding + size - padding * 2 - 4,
+                offsetY + y * size + padding,
+                4,
+                size - padding * 2
+            );
+            
+            context.fillStyle = 'rgba(255, 255, 255, 0.7)';
+            context.fillRect(
+                offsetX + x * size + padding,
+                offsetY + y * size + padding,
+                4,
+                4
+            );
         }
         
         // Move the current piece
         function movePiece(direction) {
-            if (!currentPiece || !gameActive) return;
+            if (!currentPiece.shape || !gameActive) return;
             
             if (direction === 'left') {
-                if (piecePosition.x > 0) piecePosition.x--;
+                if (currentPiece.x > 0) currentPiece.x--;
             } else if (direction === 'right') {
-                if (piecePosition.x < 9) piecePosition.x++;
+                if (currentPiece.x < 10 - currentPiece.shape[0].length) currentPiece.x++;
             } else if (direction === 'rotate') {
-                currentPiece.rotation.y += Math.PI / 2;
-                return;
+                // Rotate the piece
+                const rotated = [];
+                for (let x = 0; x < currentPiece.shape[0].length; x++) {
+                    const newRow = [];
+                    for (let y = currentPiece.shape.length - 1; y >= 0; y--) {
+                        newRow.push(currentPiece.shape[y][x]);
+                    }
+                    rotated.push(newRow);
+                }
+                
+                if (currentPiece.x + rotated.length <= 10) {
+                    currentPiece.shape = rotated;
+                }
             }
-            
-            currentPiece.position.x = piecePosition.x;
         }
         
         // Drop the piece faster
         function dropPiece() {
-            piecePosition.y++;
-            if (currentPiece) {
-                currentPiece.position.z = piecePosition.y;
-            }
+            gameSpeed = 100;
+            setTimeout(() => {
+                gameSpeed = 1000 - (level * 50);
+            }, 500);
         }
 
         // Initialize next piece preview
         function initNextPiecePreview() {
             nextPieceCtx.clearRect(0, 0, nextPieceCanvas.width, nextPieceCanvas.height);
+            nextPieceType = Math.floor(Math.random() * PIECE_SHAPES.length);
             drawNextPiece();
         }
 
@@ -504,31 +618,33 @@
                 
                 // Show camera feed
                 cameraFeed.srcObject = stream;
-                cameraFeed.style.display = 'block';
                 cameraActive = true;
                 
-                // Hide permission screen
-                permissionScreen.style.display = 'none';
+                // Hide welcome screen and show scanning UI
+                welcomeScreen.style.display = 'none';
+                scanningScreen.style.display = 'flex';
+                scanningActive = true;
                 
-                // Show AR scanning status
-                arStatus.style.display = 'block';
+                // Start scanning visualization
+                startScanningAnimation();
                 
-                // Setup touch controls
-                touchOverlay.style.display = 'block';
-                
+                // After scanning, start the game
                 setTimeout(() => {
-                    startARExperience();
-                }, 2000);
+                    if (scanningActive) {
+                        scanningScreen.style.display = 'none';
+                        startGame();
+                    }
+                }, 5000);
                 
             } catch (error) {
-                permissionScreen.innerHTML = `
+                welcomeScreen.innerHTML = `
                     <div class="logo" style="background: #ff5555;">
                         <i class="fas fa-exclamation"></i>
                     </div>
                     <h2>Camera Access Required</h2>
                     <p class="subtitle">Could not access camera: ${error.message}</p>
                     <p class="subtitle">Please check your browser settings and try again.</p>
-                    <button id="retry-btn" style="margin-top: 30px; padding: 16px 40px; background: #ff5555; color: white; border: none; border-radius: 30px; font-size: 18px; cursor: pointer;">
+                    <button id="retry-btn" class="btn" style="background: #ff5555;">
                         <i class="fas fa-redo"></i> TRY AGAIN
                     </button>
                 `;
@@ -539,20 +655,28 @@
             }
         }
 
-        // Start AR experience
-        function startARExperience() {
-            if (!cameraActive) return;
+        // Start scanning animation
+        function startScanningAnimation() {
+            scanProgress = 0;
+            clearInterval(scanInterval);
             
-            // Show game canvas
-            gameCanvas.style.display = 'block';
-            
-            // Start the game
-            startGame();
+            scanInterval = setInterval(() => {
+                if (!scanningActive) return;
+                
+                scanProgress += 10;
+                document.querySelector('.scan-text').textContent = `Scanning surfaces... ${scanProgress}%`;
+                
+                if (scanProgress >= 100) {
+                    clearInterval(scanInterval);
+                }
+            }, 400);
         }
 
         // Start the game
         function startGame() {
             gameActive = true;
+            arStatus.style.display = 'block';
+            touchOverlay.style.display = 'grid';
             
             // Create the first piece
             createNewPiece();
@@ -573,39 +697,149 @@
             
             const currentTime = Date.now();
             if (currentTime - lastMoveTime > gameSpeed) {
-                piecePosition.y++;
-                if (currentPiece) {
-                    currentPiece.position.z = piecePosition.y;
-                }
+                movePieceDown();
                 lastMoveTime = currentTime;
-            }
-            
-            // Check if piece reached bottom
-            if (piecePosition.y >= 19) {
-                // Place the piece and create new one
-                piecePosition = {x: 5, y: 0};
-                createNewPiece();
-                score += 10;
-                updateScore();
             }
         }
         
-        // Animation loop
-        function animate() {
-            requestAnimationFrame(animate);
-            update();
-            renderer.render(scene, camera);
+        // Move piece down
+        function movePieceDown() {
+            if (!currentPiece.shape) return;
+            
+            currentPiece.y++;
+            
+            // Check collision
+            if (checkCollision()) {
+                // Revert position
+                currentPiece.y--;
+                
+                // Lock piece in place
+                lockPiece();
+                
+                // Check for line clears
+                clearLines();
+                
+                // Create new piece
+                createNewPiece();
+                piecePosition.y = 0;
+                currentPiece.x = piecePosition.x;
+                currentPiece.y = piecePosition.y;
+                
+                // Check game over
+                if (checkCollision()) {
+                    gameActive = false;
+                    arStatus.style.display = 'block';
+                    arStatus.innerHTML = '<i class="fas fa-times-circle"></i> Game Over!';
+                    arStatus.style.color = '#ff5555';
+                    
+                    setTimeout(() => {
+                        arStatus.style.display = 'none';
+                        welcomeScreen.style.display = 'flex';
+                    }, 3000);
+                }
+            }
+        }
+        
+        // Check for collision
+        function checkCollision() {
+            for (let y = 0; y < currentPiece.shape.length; y++) {
+                for (let x = 0; x < currentPiece.shape[y].length; x++) {
+                    if (currentPiece.shape[y][x]) {
+                        const px = currentPiece.x + x;
+                        const py = currentPiece.y + y;
+                        
+                        if (
+                            py >= 20 || 
+                            px < 0 || 
+                            px >= 10 || 
+                            (py >= 0 && gameBoard[py][px])
+                        ) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+        
+        // Lock piece in place
+        function lockPiece() {
+            for (let y = 0; y < currentPiece.shape.length; y++) {
+                for (let x = 0; x < currentPiece.shape[y].length; x++) {
+                    if (currentPiece.shape[y][x]) {
+                        const px = currentPiece.x + x;
+                        const py = currentPiece.y + y;
+                        
+                        if (py >= 0) {
+                            gameBoard[py][px] = currentPiece.type + 1;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Clear completed lines
+        function clearLines() {
+            let linesCleared = 0;
+            
+            for (let y = 19; y >= 0; y--) {
+                let lineComplete = true;
+                
+                for (let x = 0; x < 10; x++) {
+                    if (!gameBoard[y][x]) {
+                        lineComplete = false;
+                        break;
+                    }
+                }
+                
+                if (lineComplete) {
+                    linesCleared++;
+                    
+                    // Move all lines above down
+                    for (let i = y; i > 0; i--) {
+                        gameBoard[i] = [...gameBoard[i-1]];
+                    }
+                    
+                    // Clear top line
+                    gameBoard[0] = Array(10).fill(0);
+                    
+                    // Check the same line again
+                    y++;
+                }
+            }
+            
+            if (linesCleared > 0) {
+                // Update score
+                score += [100, 300, 500, 800][linesCleared - 1] * level;
+                updateScore();
+                
+                // Show line clear effect
+                arStatus.style.display = 'block';
+                arStatus.innerHTML = `<i class="fas fa-star"></i> ${linesCleared} LINE${linesCleared > 1 ? 'S' : ''} CLEARED!`;
+                arStatus.style.color = '#00ffaa';
+                
+                setTimeout(() => {
+                    arStatus.style.display = 'none';
+                }, 2000);
+            }
         }
         
         // Update score display
         function updateScore() {
             scoreElement.textContent = score;
             
-            if (score > 0 && score % 100 === 0) {
+            if (score > 0 && score % 1000 === 0) {
                 level++;
                 levelElement.textContent = level;
-                gameSpeed = Math.max(200, 1000 - (level * 50)); // Increase speed with level
+                gameSpeed = Math.max(200, 1000 - (level * 50));
             }
+        }
+        
+        // Game loop
+        function gameLoop() {
+            update();
+            drawGame();
+            requestAnimationFrame(gameLoop);
         }
         
         // Set up touch controls
@@ -619,8 +853,8 @@
             });
             
             touchOverlay.addEventListener('touchend', (e) => {
-                const zoneWidth = window.innerWidth / 3;
                 const touchX = e.changedTouches[0].clientX;
+                const zoneWidth = window.innerWidth / 3;
                 
                 if (touchX < zoneWidth) {
                     movePiece('left');
@@ -653,6 +887,13 @@
 
         // Initialize the game when page loads
         window.addEventListener('load', initGame);
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            gameCanvas.width = window.innerWidth;
+            gameCanvas.height = window.innerHeight;
+        });
     </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
 </body>
 </html>
