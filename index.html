@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="xr-spatial-tracking" content="true">
     <style>
+        /* Maintained your original UI styles */
         body, html {
             margin: 0;
             padding: 0;
@@ -87,6 +88,15 @@
             display: none;
             border: 1px solid rgba(255, 80, 80, 0.3);
         }
+
+        .placement-grid {
+            display: none;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 999;
+        }
     </style>
 </head>
 <body>
@@ -96,7 +106,7 @@
     </div>
     <div id="next-piece"></div>
     <button id="ar-button">START AR EXPERIENCE</button>
-    <div id="placement-hint">Find a flat surface and tap to place game board</div>
+    <div id="placement-hint">Scan the floor by moving your phone slowly</div>
     <div id="game-over">
         <h2>GAME OVER</h2>
         <p>Final Score: <span id="final-score">0</span></p>
@@ -120,7 +130,7 @@
         const COLORS = [0x00F0F0, 0xF0F000, 0xA000F0, 0x00F000, 0xF00000, 0x0000F0, 0xF0A000];
 
         // Game State
-        let renderer, scene, camera, gameBoard;
+        let renderer, scene, camera, gameBoard, placementGrid;
         let currentPiece, nextPieceType, hitTestSource;
         let score = 0, level = 1, gameActive = false;
         const grid = Array(BOARD_HEIGHT).fill().map(() => Array(BOARD_WIDTH).fill(0));
@@ -130,7 +140,7 @@
             scene = new THREE.Scene();
             camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.01, 20);
             
-            // Renderer
+            // Renderer with WebGL 2.0
             renderer = new THREE.WebGLRenderer({ 
                 antialias: true,
                 alpha: true,
@@ -148,20 +158,16 @@
             directionalLight.position.set(1, 1, 1);
             scene.add(directionalLight);
 
-            // AR Setup
+            // AR Setup with Floor Detection
             const arButton = ARButton.createButton(renderer, {
-                requiredFeatures: ['hit-test'],
-                optionalFeatures: ['dom-overlay'],
-                domOverlay: { root: document.body }
+                requiredFeatures: ['hit-test', 'dom-overlay'],
+                optionalFeatures: ['plane-detection'],
+                domOverlay: { root: document.body },
+                planeDetection: { planeTypes: ['FLOOR'] }
             });
-            arButton.style.display = 'none';
-            document.body.appendChild(arButton);
 
-            document.getElementById('ar-button').addEventListener('click', () => arButton.click());
-
-            // Game Board
-            gameBoard = new THREE.Group();
-            const placementGrid = new THREE.Mesh(
+            // Floor Scanning Grid
+            placementGrid = new THREE.Mesh(
                 new THREE.PlaneGeometry(BOARD_SIZE, BOARD_SIZE),
                 new THREE.MeshBasicMaterial({
                     color: 0x0099ff,
@@ -171,24 +177,43 @@
                 })
             );
             placementGrid.rotation.x = -Math.PI / 2;
+            placementGrid.visible = false;
             scene.add(placementGrid);
 
-            // XR Events
-            renderer.xr.addEventListener('sessionstart', async () => {
-                const session = renderer.xr.getSession();
-                const referenceSpace = await session.requestReferenceSpace('viewer');
-                hitTestSource = await session.requestHitTestSource({ space: referenceSpace });
+            // AR Session Handling
+            renderer.xr.addEventListener('sessionstart', async (session) => {
+                const referenceSpace = await session.requestReferenceSpace('bounded-floor');
+                hitTestSource = await session.requestHitTestSource({
+                    space: referenceSpace,
+                    entityTypes: ['plane'],
+                    offsetRay: new XRRay(new DOMPoint(0, 0, 0), {x: 0, y: -1, z: 0})
+                });
+                
                 session.addEventListener('select', placeBoard);
                 document.getElementById('placement-hint').style.display = 'block';
             });
 
-            // Game Loop
+            // Game Board Setup
+            gameBoard = new THREE.Group();
+            scene.add(gameBoard);
+
+            // Main Animation Loop
             renderer.setAnimationLoop((timestamp, frame) => {
                 if(frame && hitTestSource) {
                     const hitTestResults = frame.getHitTestResults(hitTestSource);
                     if(hitTestResults.length > 0) {
-                        const pose = hitTestResults[0].getPose(renderer.xr.getReferenceSpace());
-                        placementGrid.matrix.fromArray(pose.transform.matrix);
+                        const hit = hitTestResults[0];
+                        const pose = hit.getPose(renderer.xr.getReferenceSpace());
+                        
+                        // Verify floor plane orientation
+                        const normal = new THREE.Vector3();
+                        normal.fromArray(hit.plane.normal);
+                        if(Math.abs(normal.y) > 0.9) { // Only horizontal surfaces
+                            placementGrid.visible = true;
+                            placementGrid.matrix.fromArray(pose.transform.matrix);
+                        } else {
+                            placementGrid.visible = false;
+                        }
                     }
                 }
                 renderer.render(scene, camera);
@@ -215,12 +240,22 @@
                 }
                 updatePiecePosition();
             });
+
+            // Start AR Session
+            document.getElementById('ar-button').addEventListener('click', () => {
+                if(!navigator.xr) {
+                    alert("WebXR not supported! Use Chrome on Android or Safari on iOS 15+");
+                    return;
+                }
+                arButton.click();
+            });
         }
 
         function placeBoard() {
             gameActive = true;
             document.getElementById('ar-button').style.display = 'none';
             document.getElementById('placement-hint').style.display = 'none';
+            placementGrid.visible = false;
             spawnPiece();
         }
 
@@ -236,7 +271,11 @@
             };
 
             const geometry = new THREE.BoxGeometry(BLOCK_SIZE*0.9, BLOCK_SIZE*0.9, BLOCK_SIZE*0.9);
-            const material = new THREE.MeshPhongMaterial({ color: COLORS[type] });
+            const material = new THREE.MeshPhongMaterial({ 
+                color: COLORS[type],
+                emissive: COLORS[type],
+                emissiveIntensity: 0.2
+            });
 
             shape.forEach((row, y) => {
                 row.forEach((cell, x) => {
@@ -285,6 +324,17 @@
                 currentPiece.userData.shape = newShape;
                 updatePiecePosition();
             }
+        }
+
+        function isValidRotation(newShape) {
+            return newShape.every((row, y) =>
+                row.every((cell, x) => {
+                    if(!cell) return true;
+                    const nx = currentPiece.userData.x + x;
+                    const ny = currentPiece.userData.y + y;
+                    return nx >= 0 && nx < BOARD_WIDTH && ny < BOARD_HEIGHT && !grid[ny][nx];
+                })
+            );
         }
 
         init();
