@@ -4,8 +4,8 @@
     <title>AR Tetris Pro</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="xr-spatial-tracking" content="true">
     <style>
-        /* PERFECT UI STYLES */
         body, html {
             margin: 0;
             padding: 0;
@@ -13,6 +13,7 @@
             font-family: system-ui, sans-serif;
             background: #1a1a2e;
             color: white;
+            touch-action: none;
         }
 
         #game-ui {
@@ -20,14 +21,16 @@
             top: 15px;
             left: 15px;
             z-index: 1000;
+            pointer-events: none;
         }
 
         .ui-panel {
-            background: rgba(25, 25, 45, 0.85);
+            background: rgba(25, 25, 45, 0.9);
             padding: 12px 18px;
             border-radius: 12px;
             margin-bottom: 10px;
             backdrop-filter: blur(10px);
+            border: 1px solid rgba(100, 150, 255, 0.2);
         }
 
         #next-piece {
@@ -36,8 +39,9 @@
             right: 15px;
             width: 80px;
             height: 80px;
-            background: rgba(25, 25, 45, 0.85);
+            background: rgba(25, 25, 45, 0.9);
             border-radius: 12px;
+            border: 1px solid rgba(100, 150, 255, 0.2);
         }
 
         #ar-button {
@@ -45,13 +49,16 @@
             bottom: 30px;
             left: 50%;
             transform: translateX(-50%);
-            background: #2563eb;
+            background: linear-gradient(135deg, #6a11cb, #2575fc);
             color: white;
             border: none;
             padding: 16px 40px;
             border-radius: 30px;
             font-size: 18px;
+            font-weight: 600;
             cursor: pointer;
+            box-shadow: 0 6px 25px rgba(37, 117, 252, 0.5);
+            z-index: 1001;
         }
 
         #placement-hint {
@@ -59,88 +66,227 @@
             bottom: 100px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(0,0,0,0.8);
+            background: rgba(15, 15, 30, 0.9);
             padding: 15px 30px;
             border-radius: 15px;
+            text-align: center;
+            max-width: 80%;
             display: none;
+            backdrop-filter: blur(10px);
+        }
+
+        #game-over {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(15, 15, 30, 0.95);
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            display: none;
+            border: 1px solid rgba(255, 80, 80, 0.3);
         }
     </style>
 </head>
 <body>
-    <!-- Original UI Elements -->
     <div id="game-ui">
         <div class="ui-panel">SCORE: <span id="score">0</span></div>
         <div class="ui-panel">LEVEL: <span id="level">1</span></div>
     </div>
     <div id="next-piece"></div>
     <button id="ar-button">START AR EXPERIENCE</button>
-    <div id="placement-hint">Find a flat surface and tap to place board</div>
+    <div id="placement-hint">Find a flat surface and tap to place game board</div>
+    <div id="game-over">
+        <h2>GAME OVER</h2>
+        <p>Final Score: <span id="final-score">0</span></p>
+        <button onclick="location.reload()">Play Again</button>
+    </div>
 
     <script type="module">
         import * as THREE from 'three';
         import { ARButton } from 'three/addons/webxr/ARButton.js';
 
-        // CORE GAME STATE
-        let renderer, scene, camera, gameBoard;
-        let currentPiece, nextPiece;
-        let score = 0, level = 1, gameActive = false;
+        // Game Constants
+        const BOARD_SIZE = 2.0;
+        const BOARD_WIDTH = 10;
+        const BOARD_HEIGHT = 20;
+        const BLOCK_SIZE = BOARD_SIZE / BOARD_WIDTH;
+        const SHAPES = [
+            [[1,1,1,1]], [[1,1],[1,1]], [[0,1,0],[1,1,1]],
+            [[0,1,1],[1,1,0]], [[1,1,0],[0,1,1]],
+            [[1,0],[1,0],[1,1]], [[0,1],[0,1],[1,1]]
+        ];
+        const COLORS = [0x00F0F0, 0xF0F000, 0xA000F0, 0x00F000, 0xF00000, 0x0000F0, 0xF0A000];
 
-        // FIX 1: Proper AR session initialization
+        // Game State
+        let renderer, scene, camera, gameBoard;
+        let currentPiece, nextPieceType, hitTestSource;
+        let score = 0, level = 1, gameActive = false;
+        const grid = Array(BOARD_HEIGHT).fill().map(() => Array(BOARD_WIDTH).fill(0));
+
         async function init() {
-            // Scene setup
+            // Scene Setup
             scene = new THREE.Scene();
-            camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 20);
+            camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.01, 20);
             
-            // Renderer setup
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ 
+                antialias: true,
+                alpha: true,
+                powerPreference: "high-performance"
+            });
+            renderer.setPixelRatio(window.devicePixelRatio);
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.xr.enabled = true;
             document.body.appendChild(renderer.domElement);
 
-            // FIX 2: Create proper AR button
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(1, 1, 1);
+            scene.add(directionalLight);
+
+            // AR Setup
             const arButton = ARButton.createButton(renderer, {
                 requiredFeatures: ['hit-test'],
-                optionalFeatures: ['dom-overlay']
+                optionalFeatures: ['dom-overlay'],
+                domOverlay: { root: document.body }
             });
             arButton.style.display = 'none';
             document.body.appendChild(arButton);
 
-            // FIX 3: Event delegation for actual AR start
-            document.getElementById('ar-button').addEventListener('click', () => {
-                arButton.click();
+            document.getElementById('ar-button').addEventListener('click', () => arButton.click());
+
+            // Game Board
+            gameBoard = new THREE.Group();
+            const placementGrid = new THREE.Mesh(
+                new THREE.PlaneGeometry(BOARD_SIZE, BOARD_SIZE),
+                new THREE.MeshBasicMaterial({
+                    color: 0x0099ff,
+                    wireframe: true,
+                    transparent: true,
+                    opacity: 0.5
+                })
+            );
+            placementGrid.rotation.x = -Math.PI / 2;
+            scene.add(placementGrid);
+
+            // XR Events
+            renderer.xr.addEventListener('sessionstart', async () => {
+                const session = renderer.xr.getSession();
+                const referenceSpace = await session.requestReferenceSpace('viewer');
+                hitTestSource = await session.requestHitTestSource({ space: referenceSpace });
+                session.addEventListener('select', placeBoard);
                 document.getElementById('placement-hint').style.display = 'block';
             });
 
-            // FIX 4: Core game loop
+            // Game Loop
             renderer.setAnimationLoop((timestamp, frame) => {
-                if(frame && gameActive) {
-                    // Game update logic here
+                if(frame && hitTestSource) {
+                    const hitTestResults = frame.getHitTestResults(hitTestSource);
+                    if(hitTestResults.length > 0) {
+                        const pose = hitTestResults[0].getPose(renderer.xr.getReferenceSpace());
+                        placementGrid.matrix.fromArray(pose.transform.matrix);
+                    }
                 }
                 renderer.render(scene, camera);
             });
+
+            // Touch Controls
+            let touchStartX = 0;
+            renderer.domElement.addEventListener('touchstart', e => {
+                touchStartX = e.touches[0].clientX;
+            });
+
+            renderer.domElement.addEventListener('touchend', e => {
+                if(!gameActive) return;
+                
+                const deltaX = e.changedTouches[0].clientX - touchStartX;
+                if(Math.abs(deltaX) > 30) {
+                    if(deltaX > 0 && isValidMove(currentPiece, 1, 0)) {
+                        currentPiece.userData.x += 1;
+                    } else if(isValidMove(currentPiece, -1, 0)) {
+                        currentPiece.userData.x -= 1;
+                    }
+                } else {
+                    rotatePiece();
+                }
+                updatePiecePosition();
+            });
         }
 
-        // FIX 5: Basic piece movement
-        function movePiece(direction) {
-            if(currentPiece && gameActive) {
-                currentPiece.position.x += direction * 0.5;
+        function placeBoard() {
+            gameActive = true;
+            document.getElementById('ar-button').style.display = 'none';
+            document.getElementById('placement-hint').style.display = 'none';
+            spawnPiece();
+        }
+
+        function spawnPiece() {
+            const type = Math.floor(Math.random() * SHAPES.length);
+            const shape = SHAPES[type];
+            const piece = new THREE.Group();
+            
+            piece.userData = {
+                x: Math.floor(BOARD_WIDTH/2 - shape[0].length/2),
+                y: 0,
+                shape
+            };
+
+            const geometry = new THREE.BoxGeometry(BLOCK_SIZE*0.9, BLOCK_SIZE*0.9, BLOCK_SIZE*0.9);
+            const material = new THREE.MeshPhongMaterial({ color: COLORS[type] });
+
+            shape.forEach((row, y) => {
+                row.forEach((cell, x) => {
+                    if(cell) {
+                        const block = new THREE.Mesh(geometry, material);
+                        block.position.set(
+                            x * BLOCK_SIZE - (row.length * BLOCK_SIZE)/2,
+                            -y * BLOCK_SIZE,
+                            0
+                        );
+                        piece.add(block);
+                    }
+                });
+            });
+
+            gameBoard.add(piece);
+            currentPiece = piece;
+            updatePiecePosition();
+        }
+
+        function updatePiecePosition() {
+            currentPiece.position.set(
+                (currentPiece.userData.x - BOARD_WIDTH/2) * BLOCK_SIZE,
+                (BOARD_HEIGHT/2 - currentPiece.userData.y) * BLOCK_SIZE,
+                0
+            );
+        }
+
+        function isValidMove(piece, dx, dy) {
+            return piece.userData.shape.every((row, y) => 
+                row.every((cell, x) => {
+                    if(!cell) return true;
+                    const nx = piece.userData.x + x + dx;
+                    const ny = piece.userData.y + y + dy;
+                    return nx >= 0 && nx < BOARD_WIDTH && ny < BOARD_HEIGHT && !grid[ny][nx];
+                })
+            );
+        }
+
+        function rotatePiece() {
+            const newShape = currentPiece.userData.shape[0].map((_, i) =>
+                currentPiece.userData.shape.map(row => row[i]).reverse()
+            );
+            
+            if(isValidRotation(newShape)) {
+                currentPiece.userData.shape = newShape;
+                updatePiecePosition();
             }
         }
 
-        // FIX 6: Touch controls
-        let touchStartX = 0;
-        document.addEventListener('touchstart', e => {
-            touchStartX = e.touches[0].clientX;
-        });
-        
-        document.addEventListener('touchend', e => {
-            const deltaX = e.changedTouches[0].clientX - touchStartX;
-            if(Math.abs(deltaX) > 30) {
-                movePiece(deltaX > 0 ? 1 : -1);
-            }
-        });
-
-        // Initialize the game
         init();
     </script>
 </body>
