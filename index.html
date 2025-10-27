@@ -5,34 +5,89 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="xr-spatial-tracking" content="true">
     <title>AR Tetris Pro</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/XRController.js"></script>
     <style>
-        body, html {
+        * {
             margin: 0;
             padding: 0;
-            overflow: hidden;
-            background: #000;
-            color: #fff;
-            font-family: Arial, sans-serif;
+            box-sizing: border-box;
             touch-action: none;
         }
 
-        /* UI Elements */
-        #score {
-            position: fixed;
-            top: 15px;
-            right: 15px;
-            font-size: 24px;
-            z-index: 1000;
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: linear-gradient(135deg, #0a0a16, #1a1a2e);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: white;
         }
 
-        #level {
+        #game-container {
             position: fixed;
-            top: 15px;
-            left: 15px;
-            font-size: 24px;
-            z-index: 1000;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* UI Elements */
+        #score-display {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(25, 25, 45, 0.9);
+            padding: 12px 20px;
+            border-radius: 15px;
+            font-size: 20px;
+            font-weight: 600;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(100, 150, 255, 0.3);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            z-index: 1001;
+            display: none;
+        }
+
+        #level-display {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(25, 25, 45, 0.9);
+            padding: 12px 20px;
+            border-radius: 15px;
+            font-size: 20px;
+            font-weight: 600;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(100, 150, 255, 0.3);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            z-index: 1001;
+            display: none;
+        }
+
+        #next-piece {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 80px;
+            background: rgba(25, 25, 45, 0.9);
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(100, 150, 255, 0.3);
+            z-index: 1001;
+            display: none;
+        }
+
+        #next-piece-canvas {
+            width: 60px;
+            height: 60px;
         }
 
         #ar-button {
@@ -40,157 +95,572 @@
             bottom: 30px;
             left: 50%;
             transform: translateX(-50%);
-            padding: 15px 40px;
-            border-radius: 30px;
-            background: linear-gradient(45deg, #2196F3, #4CAF50);
+            background: linear-gradient(135deg, #6a11cb, #2575fc);
             color: white;
             border: none;
+            padding: 16px 40px;
+            border-radius: 30px;
             font-size: 18px;
+            font-weight: 600;
             cursor: pointer;
-            box-shadow: 0 4px 15px rgba(33, 150, 243, 0.4);
+            box-shadow: 0 8px 25px rgba(37, 117, 252, 0.7);
+            z-index: 1001;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
-        #ar-status {
-            position: fixed;
-            bottom: 100px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0,0,0,0.8);
-            padding: 12px 25px;
-            border-radius: 8px;
-            display: none;
+        #ar-button:hover {
+            transform: translateX(-50%) scale(1.05);
+            box-shadow: 0 12px 30px rgba(37, 117, 252, 0.9);
+        }
+
+        #ar-button i {
+            font-size: 24px;
         }
 
         #placement-hint {
             position: fixed;
-            bottom: 150px;
+            bottom: 100px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(0,0,0,0.8);
-            padding: 15px;
-            border-radius: 8px;
+            background: rgba(15, 15, 30, 0.9);
+            padding: 15px 30px;
+            border-radius: 15px;
+            text-align: center;
+            max-width: 90%;
+            backdrop-filter: blur(10px);
             display: none;
+            border: 1px solid rgba(100, 150, 255, 0.3);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            z-index: 1001;
+        }
+
+        #ar-status {
+            position: fixed;
+            bottom: 160px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: #ff9900;
+            padding: 12px 25px;
+            border-radius: 30px;
+            font-size: 16px;
+            display: none;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 153, 0, 0.3);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            z-index: 1001;
+            text-align: center;
+        }
+
+        #permission-request {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 10, 20, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .permission-card {
+            background: rgba(30, 30, 50, 0.9);
+            padding: 30px;
+            border-radius: 20px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(100, 150, 255, 0.3);
+        }
+
+        .permission-card h2 {
+            font-size: 28px;
+            margin-bottom: 20px;
+            color: #6a11cb;
+        }
+
+        .permission-card p {
+            font-size: 18px;
+            margin-bottom: 25px;
+            line-height: 1.6;
+        }
+
+        .permission-icon {
+            font-size: 60px;
+            color: #6a11cb;
+            margin-bottom: 20px;
+        }
+
+        .permission-steps {
+            text-align: left;
+            margin: 25px 0;
+            padding-left: 25px;
+        }
+
+        .permission-steps li {
+            margin-bottom: 15px;
+            font-size: 16px;
+            line-height: 1.4;
+        }
+
+        #grant-permission-btn {
+            background: linear-gradient(135deg, #6a11cb, #2575fc);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 30px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: all 0.3s ease;
+        }
+
+        #grant-permission-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 25px rgba(37, 117, 252, 0.7);
+        }
+
+        #game-title {
+            text-align: center;
+            font-size: 48px;
+            font-weight: 800;
+            margin: 60px 0 30px;
+            background: linear-gradient(90deg, #6a11cb, #2575fc, #00c9ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .game-info {
+            margin: 20px 0;
+            font-size: 18px;
+            text-align: center;
+            color: #a0a0d0;
+            max-width: 600px;
+            line-height: 1.6;
+        }
+
+        #camera-feed {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 1;
+            display: none;
+        }
+
+        #ar-grid {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(100, 150, 255, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(100, 150, 255, 0.1) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: 2;
+            display: none;
+        }
+
+        #game-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 3;
+            pointer-events: none;
+        }
+
+        #ar-activation-guide {
+            position: fixed;
+            bottom: 200px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.9);
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            display: none;
+            z-index: 1002;
+            max-width: 90%;
+            border: 1px solid rgba(100, 150, 255, 0.3);
+        }
+        
+        #ar-icon-demo {
+            width: 40px;
+            height: 40px;
+            background: #6a11cb;
+            border-radius: 50%;
+            margin: 10px auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 24px;
+        }
+
+        @media (max-width: 768px) {
+            #game-title {
+                font-size: 36px;
+            }
+            
+            .permission-card {
+                padding: 20px;
+            }
+            
+            #score-display, #level-display {
+                padding: 10px 15px;
+                font-size: 16px;
+            }
         }
     </style>
 </head>
 <body>
-    <div id="score">SCORE: 0</div>
-    <div id="level">LEVEL: 1</div>
-    <button id="ar-button">START AR</button>
-    <div id="ar-status">Initializing AR system...</div>
-    <div id="placement-hint">Move device to scan floor surface</div>
+    <div id="game-container">
+        <!-- Camera feed (will be activated after permission) -->
+        <video id="camera-feed" autoplay playsinline></video>
+        
+        <!-- AR grid visualization -->
+        <div id="ar-grid"></div>
+        
+        <!-- Game UI Overlay -->
+        <div id="game-overlay">
+            <div id="score-display">SCORE: <span id="score">0</span></div>
+            <div id="level-display">LEVEL: <span id="level">1</span></div>
+            <div id="next-piece">
+                <canvas id="next-piece-canvas" width="100" height="100"></canvas>
+            </div>
+            
+            <button id="ar-button">
+                <i class="fas fa-play"></i> START AR
+            </button>
+            
+            <div id="placement-hint">
+                <i class="fas fa-arrows-alt"></i> Move your device to scan the floor surface
+            </div>
+            
+            <div id="ar-status">
+                <i class="fas fa-info-circle"></i> Preparing AR experience...
+            </div>
+            
+            <div id="ar-activation-guide">
+                <div id="ar-icon-demo">AR</div>
+                <p>Tap the AR icon in your address bar<br>and select "Augmented Reality"</p>
+            </div>
+        </div>
 
-    <script type="module">
-        let renderer, scene, camera, controller;
-        let currentPiece, gameBoard;
-        let score = 0, level = 1, gameActive = false;
+        <!-- Initial Permission Request -->
+        <div id="permission-request">
+            <div class="permission-card">
+                <h1 id="game-title">AR Tetris Pro</h1>
+                <div class="permission-icon">
+                    <i class="fas fa-vr-cardboard"></i>
+                </div>
+                <h2>AR Experience Requires Permissions</h2>
+                <p>To play AR Tetris, we need access to your device's camera and motion sensors for the augmented reality experience.</p>
+                
+                <ul class="permission-steps">
+                    <li><strong>1. Camera Access:</strong> Allow camera permission when prompted</li>
+                    <li><strong>2. AR Mode:</strong> After starting the game, look for the AR icon in your browser's address bar</li>
+                    <li><strong>3. Enable AR:</strong> Tap the AR icon and select "Augmented Reality" mode</li>
+                    <li><strong>4. Floor Scanning:</strong> Tilt your device downward to scan the floor</li>
+                </ul>
+                
+                <p>Make sure you're in a well-lit area with a flat surface for best results.</p>
+                <button id="grant-permission-btn">
+                    <i class="fas fa-check-circle"></i> Grant Permissions & Start Game
+                </button>
+            </div>
+        </div>
+    </div>
 
-        async function init() {
-            // Three.js setup
-            scene = new THREE.Scene();
-            camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 1000);
-
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.xr.enabled = true;
-            document.body.appendChild(renderer.domElement);
-
-            // Lighting
-            const light = new THREE.AmbientLight(0xffffff, 1);
-            scene.add(light);
-
-            // AR Setup
-            const arButton = document.getElementById('ar-button');
-            const arStatus = document.getElementById('ar-status');
-            const placementHint = document.getElementById('placement-hint');
-
-            async function checkPermissions() {
-                try {
-                    const cameraPermission = await navigator.permissions.query({ name: 'camera' });
-                    if (cameraPermission.state === 'denied') {
-                        arStatus.textContent = "Camera access required! Enable in browser settings";
-                        arStatus.style.display = 'block';
-                        return false;
+    <script>
+        // DOM elements
+        const permissionRequest = document.getElementById('permission-request');
+        const grantPermissionBtn = document.getElementById('grant-permission-btn');
+        const arButton = document.getElementById('ar-button');
+        const placementHint = document.getElementById('placement-hint');
+        const arStatus = document.getElementById('ar-status');
+        const cameraFeed = document.getElementById('camera-feed');
+        const scoreElement = document.getElementById('score');
+        const levelElement = document.getElementById('level');
+        const nextPieceCanvas = document.getElementById('next-piece-canvas');
+        const nextPieceCtx = nextPieceCanvas.getContext('2d');
+        const arGrid = document.getElementById('ar-grid');
+        const arActivationGuide = document.getElementById('ar-activation-guide');
+        const scoreDisplay = document.getElementById('score-display');
+        const levelDisplay = document.getElementById('level-display');
+        const nextPiece = document.getElementById('next-piece');
+        
+        // Game state
+        let score = 0;
+        let level = 1;
+        let nextPieceType = 0;
+        let gameActive = false;
+        let cameraActive = false;
+        
+        // Game constants
+        const COLORS = [
+            '#00F0F0', // I - Cyan
+            '#0000F0', // J - Blue
+            '#F0A000', // L - Orange
+            '#F0F000', // O - Yellow
+            '#00F000', // S - Green
+            '#A000F0', // T - Purple
+            '#F00000'  // Z - Red
+        ];
+        
+        const SHAPES = [
+            [[1, 1, 1, 1]], // I
+            [[1, 0, 0], [1, 1, 1]], // J
+            [[0, 0, 1], [1, 1, 1]], // L
+            [[1, 1], [1, 1]], // O
+            [[0, 1, 1], [1, 1, 0]], // S
+            [[0, 1, 0], [1, 1, 1]], // T
+            [[1, 1, 0], [0, 1, 1]]  // Z
+        ];
+        
+        // Initialize the game
+        function initGame() {
+            initNextPiecePreview();
+            scoreElement.textContent = score;
+            levelElement.textContent = level;
+        }
+        
+        // Initialize next piece preview
+        function initNextPiecePreview() {
+            nextPieceCtx.clearRect(0, 0, nextPieceCanvas.width, nextPieceCanvas.height);
+            nextPieceType = Math.floor(Math.random() * SHAPES.length);
+            drawNextPiece();
+        }
+        
+        // Draw next piece preview
+        function drawNextPiece() {
+            const shape = SHAPES[nextPieceType];
+            const color = COLORS[nextPieceType];
+            
+            nextPieceCtx.clearRect(0, 0, nextPieceCanvas.width, nextPieceCanvas.height);
+            
+            shape.forEach((row, y) => {
+                row.forEach((value, x) => {
+                    if (value) {
+                        nextPieceCtx.fillStyle = color;
+                        nextPieceCtx.fillRect(
+                            x * 15 + (nextPieceCanvas.width - row.length * 15) / 2,
+                            y * 15 + 10,
+                            13,
+                            13
+                        );
+                        
+                        // Add 3D effect
+                        nextPieceCtx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                        nextPieceCtx.fillRect(
+                            x * 15 + (nextPieceCanvas.width - row.length * 15) / 2,
+                            y * 15 + 10,
+                            13,
+                            3
+                        );
+                        
+                        nextPieceCtx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                        nextPieceCtx.fillRect(
+                            x * 15 + (nextPieceCanvas.width - row.length * 15) / 2 + 10,
+                            y * 15 + 10,
+                            3,
+                            13
+                        );
                     }
-                    return true;
-                } catch (error) {
-                    console.error("Permission check failed:", error);
-                    return false;
-                }
-            }
-
-            arButton.addEventListener('click', async () => {
-                if (!navigator.xr) {
-                    arStatus.textContent = "AR not supported! Use Chrome Android or Safari iOS 15+";
-                    arStatus.style.display = 'block';
-                    return;
-                }
-
-                arStatus.style.display = 'block';
-                arStatus.textContent = "Requesting camera access...";
-
-                if (!await checkPermissions()) return;
-
-                // Start AR session
-                const session = await navigator.xr.requestSession('immersive-ar', {
-                    requiredFeatures: ['hit-test'],
-                    optionalFeatures: ['dom-overlay']
-                });
-
-                session.addEventListener('end', () => {
-                    gameActive = false;
-                    arButton.style.display = 'block';
-                });
-
-                // Floor detection setup
-                const referenceSpace = await session.requestReferenceSpace('local-floor');
-                const hitTestSource = await session.requestHitTestSource({
-                    space: referenceSpace,
-                    offsetRay: new XRRay(new DOMPoint(0, 0, 0), {x: 0, y: -1, z: 0})
-                });
-
-                placementHint.style.display = 'block';
-                arStatus.style.display = 'none';
-
-                session.addEventListener('select', () => {
-                    if (!gameActive) startGame();
-                });
-
-                // Main AR loop
-                renderer.xr.setReferenceSpaceType('local-floor');
-                renderer.xr.setSession(session);
-                renderer.setAnimationLoop((timestamp, frame) => {
-                    if (frame && hitTestSource) {
-                        const hitTestResults = frame.getHitTestResults(hitTestSource);
-                        if (hitTestResults.length > 0) {
-                            const pose = hitTestResults[0].getPose(referenceSpace);
-                            // Verify floor plane
-                            const normal = new THREE.Vector3();
-                            normal.fromArray(hitTestResults[0].plane.normal);
-                            if (Math.abs(normal.y) > 0.9) {
-                                if (!gameBoard) initGameBoard(pose.transform.matrix);
-                            }
-                        }
-                    }
-                    renderer.render(scene, camera);
                 });
             });
         }
-
-        function initGameBoard(matrix) {
-            gameBoard = new THREE.Group();
-            gameBoard.matrix.fromArray(matrix);
-            gameBoard.matrixAutoUpdate = false;
-            scene.add(gameBoard);
-            gameActive = true;
-            spawnPiece();
+        
+        // Handle permission grant
+        grantPermissionBtn.addEventListener('click', async () => {
+            permissionRequest.style.display = 'none';
+            arStatus.style.display = 'block';
+            arStatus.innerHTML = '<i class="fas fa-camera"></i> Requesting camera access...';
+            
+            try {
+                // Request camera access directly
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: 'environment',
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    } 
+                });
+                
+                // Start camera feed
+                cameraFeed.srcObject = stream;
+                cameraFeed.style.display = 'block';
+                cameraActive = true;
+                
+                arStatus.innerHTML = '<i class="fas fa-check-circle"></i> Camera access granted!';
+                
+                setTimeout(() => {
+                    arStatus.style.display = 'none';
+                    arButton.style.display = 'block';
+                }, 2000);
+            } catch (error) {
+                arStatus.innerHTML = `<i class="fas fa-exclamation-circle"></i> Camera error: ${error.message}`;
+                console.error('Camera error:', error);
+            }
+        });
+        
+        // Start AR experience
+        arButton.addEventListener('click', async () => {
+            if (!cameraActive) {
+                arStatus.style.display = 'block';
+                arStatus.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Camera not active! Grant permissions first.';
+                return;
+            }
+            
+            arStatus.style.display = 'block';
+            arStatus.innerHTML = '<i class="fas fa-vr-cardboard"></i> Starting AR experience...';
+            arButton.style.display = 'none';
+            
+            // Show AR activation guidance
+            setTimeout(() => {
+                arActivationGuide.style.display = 'block';
+                arStatus.innerHTML = '<i class="fas fa-mouse-pointer"></i> Tap AR icon in address bar';
+                
+                // Simulate AR activation
+                setTimeout(() => {
+                    arActivationGuide.style.display = 'none';
+                    arStatus.style.display = 'none';
+                    placementHint.style.display = 'block';
+                    arGrid.style.display = 'block';
+                    
+                    // Show game UI
+                    scoreDisplay.style.display = 'block';
+                    levelDisplay.style.display = 'block';
+                    nextPiece.style.display = 'block';
+                    
+                    // Simulate floor scanning
+                    setTimeout(() => {
+                        placementHint.innerHTML = '<i class="fas fa-check-circle"></i> Floor detected! Tap to place board';
+                        
+                        // Handle board placement
+                        document.addEventListener('click', placeBoardHandler);
+                    }, 3000);
+                }, 5000);
+            }, 2000);
+        });
+        
+        function placeBoardHandler() {
+            if (!gameActive) {
+                placementHint.style.display = 'none';
+                gameActive = true;
+                startGame();
+                document.removeEventListener('click', placeBoardHandler);
+            }
         }
-
-        function spawnPiece() {
-            // Piece spawning logic here
+        
+        // Start the game
+        function startGame() {
+            // Create falling blocks effect
+            function createFallingBlock() {
+                if (!gameActive) return;
+                
+                const block = document.createElement('div');
+                block.style.position = 'fixed';
+                block.style.top = '-50px';
+                block.style.left = Math.random() * 100 + 'vw';
+                block.style.width = '30px';
+                block.style.height = '30px';
+                block.style.backgroundColor = COLORS[Math.floor(Math.random() * COLORS.length)];
+                block.style.borderRadius = '4px';
+                block.style.boxShadow = '0 0 10px currentColor';
+                block.style.zIndex = '600';
+                document.getElementById('game-overlay').appendChild(block);
+                
+                // Animation
+                const animation = block.animate([
+                    { top: '-50px', opacity: 1 },
+                    { top: '100vh', opacity: 0.5 }
+                ], {
+                    duration: Math.random() * 3000 + 2000,
+                    easing: 'linear'
+                });
+                
+                animation.onfinish = () => {
+                    block.remove();
+                };
+                
+                setTimeout(createFallingBlock, Math.random() * 500);
+            }
+            
+            createFallingBlock();
+            
+            // Score updating
+            setInterval(() => {
+                if (gameActive) {
+                    score += 10;
+                    scoreElement.textContent = score;
+                    
+                    if (score % 100 === 0) {
+                        level++;
+                        levelElement.textContent = level;
+                        
+                        // Update falling speed based on level
+                        document.querySelectorAll('div').forEach(block => {
+                            if (block.style.backgroundColor) {
+                                const animation = block.getAnimations()[0];
+                                if (animation) {
+                                    animation.playbackRate = 1 + (level * 0.1);
+                                }
+                            }
+                        });
+                    }
+                }
+            }, 1000);
+            
+            // Change next piece periodically
+            setInterval(() => {
+                if (gameActive) {
+                    initNextPiecePreview();
+                }
+            }, 3000);
         }
-
-        init();
+        
+        // Initialize the game UI
+        initGame();
+        
+        // Font Awesome icons simulation
+        const style = document.createElement('style');
+        style.innerHTML = `
+            .fas {
+                display: inline-block;
+                font-style: normal;
+                font-variant: normal;
+                text-rendering: auto;
+                -webkit-font-smoothing: antialiased;
+            }
+            .fa-play:before { content: '▶'; }
+            .fa-camera:before { content: '📷'; }
+            .fa-vr-cardboard:before { content: '👓'; }
+            .fa-check-circle:before { content: '✓'; }
+            .fa-exclamation-circle:before { content: '⚠'; }
+            .fa-exclamation-triangle:before { content: '⚠'; }
+            .fa-mouse-pointer:before { content: '👉'; }
+            .fa-info-circle:before { content: 'ℹ'; }
+            .fa-arrows-alt:before { content: '⇲'; }
+        `;
+        document.head.appendChild(style);
     </script>
 </body>
 </html>
