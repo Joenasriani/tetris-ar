@@ -2,27 +2,28 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>AR Tetris Pro</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AR 3D Tetris</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/XRController.js"></script>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
             touch-action: none;
-            user-select: none;
         }
 
         body, html {
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background: linear-gradient(135deg, #0a0a16, #1a1a2e);
+            background: #0a0a16;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             color: white;
         }
 
-        #game-container {
+        #start-container {
             position: fixed;
             top: 0;
             left: 0;
@@ -32,49 +33,10 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            z-index: 1;
-        }
-
-        #camera-feed {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            z-index: 1;
-        }
-
-        #game-canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 2;
-        }
-
-        /* Screens */
-        .screen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            background: rgba(10, 10, 20, 0.95);
-            z-index: 10;
-            padding: 20px;
+            background: linear-gradient(135deg, #0a0a16, #1a1a2e);
+            z-index: 100;
             text-align: center;
-            transition: opacity 0.5s ease;
-        }
-
-        /* Welcome Screen */
-        #welcome-screen {
-            z-index: 15;
+            padding: 20px;
         }
 
         .logo {
@@ -107,7 +69,7 @@
             line-height: 1.6;
         }
 
-        .btn {
+        #start-btn {
             background: linear-gradient(135deg, #6a11cb, #2575fc);
             color: white;
             border: none;
@@ -116,6 +78,7 @@
             font-size: 20px;
             font-weight: 600;
             cursor: pointer;
+            margin-top: 20px;
             display: flex;
             align-items: center;
             gap: 12px;
@@ -123,24 +86,32 @@
             transition: all 0.3s ease;
         }
 
-        .btn:hover {
+        #start-btn:hover {
             transform: scale(1.05);
             box-shadow: 0 12px 30px rgba(37, 117, 252, 0.9);
         }
 
-        /* Scanning Screen */
-        #scanning-screen {
-            z-index: 12;
-            background: rgba(10, 10, 20, 0.85);
+        #ar-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             display: none;
         }
 
-        .scan-mesh {
-            position: absolute;
+        #scanning-ui {
+            position: fixed;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
-            background-image: 
-                radial-gradient(circle at center, rgba(100, 150, 255, 0.2) 0%, transparent 70%);
+            background: rgba(10, 10, 20, 0.85);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
         }
 
         .scan-grid {
@@ -183,10 +154,18 @@
             font-weight: bold;
         }
 
-        /* Game UI */
-        .game-ui {
+        #game-ui {
             position: fixed;
-            z-index: 3;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 20;
+            display: none;
+        }
+
+        .game-panel {
             background: rgba(25, 25, 45, 0.9);
             padding: 12px 20px;
             border-radius: 12px;
@@ -197,18 +176,21 @@
         }
 
         #score-display {
+            position: fixed;
             top: 20px;
             right: 20px;
             font-size: 18px;
         }
 
         #level-display {
+            position: fixed;
             top: 20px;
             left: 20px;
             font-size: 18px;
         }
 
         #next-piece-container {
+            position: fixed;
             top: 20px;
             left: 50%;
             transform: translateX(-50%);
@@ -220,6 +202,7 @@
         }
 
         #controls-info {
+            position: fixed;
             bottom: 30px;
             left: 50%;
             transform: translateX(-50%);
@@ -230,6 +213,7 @@
         }
 
         #ar-status {
+            position: fixed;
             bottom: 100px;
             left: 50%;
             transform: translateX(-50%);
@@ -237,7 +221,6 @@
             color: #ff9900;
             padding: 12px 25px;
             border-radius: 30px;
-            display: none;
             text-align: center;
         }
 
@@ -247,9 +230,10 @@
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: 4;
+            z-index: 10;
             display: grid;
             grid-template-columns: 1fr 1fr 1fr;
+            display: none;
         }
 
         .control-zone {
@@ -268,53 +252,88 @@
         #right-zone {
             background: linear-gradient(90deg, transparent, rgba(0, 201, 255, 0.4));
         }
+
+        #cancel-scan-btn {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 0, 0, 0.3);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 30px;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        @media (max-width: 767px) {
+            h1 {
+                font-size: 36px;
+            }
+            
+            #start-btn {
+                padding: 16px 40px;
+                font-size: 18px;
+            }
+            
+            .game-panel {
+                padding: 10px 15px;
+                font-size: 16px;
+            }
+            
+            #next-piece-container {
+                width: 70px;
+                height: 70px;
+            }
+        }
     </style>
 </head>
 <body>
-    <div id="game-container">
-        <video id="camera-feed" autoplay playsinline></video>
-        <canvas id="game-canvas"></canvas>
-        
-        <!-- Screens -->
-        <div id="welcome-screen" class="screen">
-            <div class="logo">
-                <i class="fas fa-cubes"></i>
-            </div>
-            <h1>AR TETRIS PRO</h1>
-            <p class="subtitle">Experience Tetris like never before with augmented reality technology. Place the game board on any flat surface and play in your real environment!</p>
-            <button id="start-btn" class="btn">
-                <i class="fas fa-play"></i> START GAME
-            </button>
+    <div id="start-container">
+        <div class="logo">
+            <div style="font-size: 40px;">AR</div>
         </div>
+        <h1>3D AR TETRIS</h1>
+        <p class="subtitle">Scan your environment to place the game board. Play Tetris in augmented reality with 3D pieces falling onto your floor!</p>
+        <button id="start-btn">
+            START AR EXPERIENCE
+        </button>
+    </div>
+
+    <div id="ar-container">
+        <canvas id="ar-canvas"></canvas>
         
-        <div id="scanning-screen" class="screen">
-            <div class="scan-mesh"></div>
+        <div id="scanning-ui">
             <div class="scan-grid"></div>
             <div class="scan-indicator">
-                <i class="fas fa-sync fa-spin fa-3x" style="color: #00c9ff;"></i>
+                <div style="font-size: 40px; color: #00c9ff;">AR</div>
             </div>
-            <div class="scan-text">Scanning surfaces...</div>
-            <button id="cancel-scan-btn" class="btn" style="margin-top: 320px; background: rgba(255,0,0,0.3);">
-                <i class="fas fa-times"></i> Cancel
+            <div class="scan-text">Scanning floor surface...</div>
+            <button id="cancel-scan-btn">
+                <i class="fas fa-times"></i> Cancel Scanning
             </button>
         </div>
         
-        <!-- Game UI -->
-        <div id="score-display" class="game-ui">SCORE: <span id="score">0</span></div>
-        <div id="level-display" class="game-ui">LEVEL: <span id="level">1</span></div>
-        <div id="next-piece-container" class="game-ui">
-            <canvas id="next-piece-canvas" width="100" height="100"></canvas>
-        </div>
-        <div id="controls-info" class="game-ui">
-            <i class="fas fa-arrows-left-right"></i> Tap sides to move | 
-            <i class="fas fa-sync"></i> Tap center to rotate | 
-            <i class="fas fa-arrow-down"></i> Swipe down to drop
-        </div>
-        <div id="ar-status" class="game-ui">
-            <i class="fas fa-info-circle"></i> Scanning surfaces...
+        <div id="game-ui">
+            <div id="score-display" class="game-panel">SCORE: <span id="score">0</span></div>
+            <div id="level-display" class="game-panel">LEVEL: <span id="level">1</span></div>
+            <div id="next-piece-container" class="game-panel">
+                <canvas id="next-piece-canvas" width="100" height="100"></canvas>
+            </div>
+            <div id="controls-info" class="game-panel">
+                <i class="fas fa-arrows-left-right"></i> Tap sides to move | 
+                <i class="fas fa-sync"></i> Tap center to rotate | 
+                <i class="fas fa-arrow-down"></i> Swipe down to drop
+            </div>
+            <div id="ar-status" class="game-panel">
+                <i class="fas fa-info-circle"></i> Scanning surfaces...
+            </div>
         </div>
         
-        <!-- Touch Controls -->
         <div id="touch-overlay">
             <div id="left-zone" class="control-zone"></div>
             <div id="middle-zone" class="control-zone"></div>
@@ -325,13 +344,13 @@
     <script>
         // Game Constants
         const PIECE_COLORS = [
-            '#00F0F0', // I - Cyan
-            '#0000F0', // J - Blue
-            '#F0A000', // L - Orange
-            '#F0F000', // O - Yellow
-            '#00F000', // S - Green
-            '#A000F0', // T - Purple
-            '#F00000'  // Z - Red
+            0x00F0F0, // I - Cyan
+            0x0000F0, // J - Blue
+            0xF0A000, // L - Orange
+            0xF0F000, // O - Yellow
+            0x00F000, // S - Green
+            0xA000F0, // T - Purple
+            0xF00000  // Z - Red
         ];
 
         const PIECE_SHAPES = [
@@ -345,219 +364,231 @@
         ];
 
         // DOM Elements
-        const welcomeScreen = document.getElementById('welcome-screen');
-        const scanningScreen = document.getElementById('scanning-screen');
+        const startContainer = document.getElementById('start-container');
+        const arContainer = document.getElementById('ar-container');
+        const scanningUI = document.getElementById('scanning-ui');
         const startBtn = document.getElementById('start-btn');
         const cancelScanBtn = document.getElementById('cancel-scan-btn');
-        const cameraFeed = document.getElementById('camera-feed');
-        const gameCanvas = document.getElementById('game-canvas');
+        const gameUI = document.getElementById('game-ui');
         const scoreElement = document.getElementById('score');
         const levelElement = document.getElementById('level');
         const nextPieceCanvas = document.getElementById('next-piece-canvas');
         const nextPieceCtx = nextPieceCanvas.getContext('2d');
         const arStatus = document.getElementById('ar-status');
         const touchOverlay = document.getElementById('touch-overlay');
-        const ctx = gameCanvas.getContext('2d');
+        const arCanvas = document.getElementById('ar-canvas');
 
-        // Game state
+        // Three.js variables
+        let scene, camera, renderer;
+        let gameBoardGroup, currentPieceGroup;
+        let floorFound = false;
+        let gameActive = false;
         let score = 0;
         let level = 1;
         let nextPieceType = 0;
-        let gameActive = false;
-        let cameraActive = false;
-        let scanningActive = false;
-        let gameBoard = [];
-        let currentPiece = {};
-        let piecePosition = {x: 4, y: 0};
+        let currentPiece = null;
+        let piecePosition = {x: 0, y: 0, z: 0};
         let gameSpeed = 1000; // ms per move
         let lastMoveTime = 0;
         let scanProgress = 0;
         let scanInterval;
-        let gridSize = 20;
+        let xrSession = null;
         
         // Initialize the game
-        function initGame() {
-            // Set canvas size
-            gameCanvas.width = window.innerWidth;
-            gameCanvas.height = window.innerHeight;
-            
+        function init() {
             // Set up event listeners
-            startBtn.addEventListener('click', requestCameraPermission);
-            cancelScanBtn.addEventListener('click', () => {
-                scanningActive = false;
-                clearInterval(scanInterval);
-                scanningScreen.style.display = 'none';
-                welcomeScreen.style.display = 'flex';
-            });
+            startBtn.addEventListener('click', startARExperience);
+            cancelScanBtn.addEventListener('click', cancelScanning);
             
-            // Initialize game board
-            initGameBoard();
+            // Initialize Three.js
+            initThreeJS();
             
             // Initialize next piece preview
             initNextPiecePreview();
+        }
+        
+        // Initialize Three.js
+        function initThreeJS() {
+            // Create scene
+            scene = new THREE.Scene();
+            
+            // Create camera
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 1.6, 3);
+            
+            // Create renderer
+            renderer = new THREE.WebGLRenderer({
+                canvas: arCanvas,
+                antialias: true,
+                alpha: true
+            });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            
+            // Add lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(0.5, 1, 0.5);
+            scene.add(directionalLight);
             
             // Start animation loop
-            requestAnimationFrame(gameLoop);
+            animate();
+        }
+        
+        // Start AR experience
+        async function startARExperience() {
+            // Hide start screen and show AR container
+            startContainer.style.display = 'none';
+            arContainer.style.display = 'block';
+            scanningUI.style.display = 'flex';
+            
+            // Start scanning animation
+            startScanningAnimation();
+            
+            // Simulate scanning process
+            setTimeout(() => {
+                if (!floorFound) {
+                    // After scanning, initialize the game board
+                    scanningUI.style.display = 'none';
+                    gameUI.style.display = 'block';
+                    touchOverlay.style.display = 'grid';
+                    initializeGameBoard();
+                    startGame();
+                }
+            }, 5000);
+        }
+        
+        // Start scanning animation
+        function startScanningAnimation() {
+            scanProgress = 0;
+            clearInterval(scanInterval);
+            
+            scanInterval = setInterval(() => {
+                if (!floorFound) {
+                    scanProgress += 10;
+                    document.querySelector('.scan-text').textContent = `Scanning floor... ${scanProgress}%`;
+                    
+                    if (scanProgress >= 100) {
+                        clearInterval(scanInterval);
+                    }
+                }
+            }, 400);
+        }
+        
+        // Cancel scanning
+        function cancelScanning() {
+            scanningUI.style.display = 'none';
+            startContainer.style.display = 'flex';
+            clearInterval(scanInterval);
         }
         
         // Initialize game board
-        function initGameBoard() {
-            gameBoard = [];
-            for (let i = 0; i < 20; i++) {
-                gameBoard.push(Array(10).fill(0));
-            }
+        function initializeGameBoard() {
+            // Create game board group
+            gameBoardGroup = new THREE.Group();
+            scene.add(gameBoardGroup);
+            
+            // Create grid floor
+            const gridSize = 10;
+            const gridDivisions = 10;
+            const gridHelper = new THREE.GridHelper(gridSize, gridDivisions, 0x444444, 0x222222);
+            gridHelper.position.y = -0.05;
+            gridHelper.rotation.x = Math.PI / 2;
+            gameBoardGroup.add(gridHelper);
+            
+            // Create walls
+            const wallHeight = 2;
+            const wallThickness = 0.2;
+            
+            // Left wall
+            const leftWallGeometry = new THREE.BoxGeometry(wallThickness, wallHeight, gridSize);
+            const leftWallMaterial = new THREE.MeshPhongMaterial({ color: 0x888888, transparent: true, opacity: 0.7 });
+            const leftWall = new THREE.Mesh(leftWallGeometry, leftWallMaterial);
+            leftWall.position.set(-gridSize/2, wallHeight/2, 0);
+            gameBoardGroup.add(leftWall);
+            
+            // Right wall
+            const rightWall = new THREE.Mesh(leftWallGeometry, leftWallMaterial);
+            rightWall.position.set(gridSize/2, wallHeight/2, 0);
+            gameBoardGroup.add(rightWall);
+            
+            // Back wall
+            const backWallGeometry = new THREE.BoxGeometry(gridSize, wallHeight, wallThickness);
+            const backWall = new THREE.Mesh(backWallGeometry, leftWallMaterial);
+            backWall.position.set(0, wallHeight/2, -gridSize/2);
+            gameBoardGroup.add(backWall);
+            
+            // Position the board slightly in front of camera
+            gameBoardGroup.position.set(0, 0, -2);
+            
+            floorFound = true;
         }
         
         // Create a new Tetris piece
         function createNewPiece() {
-            currentPiece = {
-                type: nextPieceType,
-                shape: JSON.parse(JSON.stringify(PIECE_SHAPES[nextPieceType])),
-                rotation: 0,
-                x: piecePosition.x,
-                y: piecePosition.y
-            };
+            // Remove existing piece
+            if (currentPieceGroup) {
+                scene.remove(currentPieceGroup);
+            }
             
+            const pieceType = nextPieceType;
             nextPieceType = Math.floor(Math.random() * PIECE_SHAPES.length);
             drawNextPiece();
-        }
-        
-        // Draw the game board and pieces
-        function drawGame() {
-            // Clear canvas
-            ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
             
-            // Draw game board
-            const cellSize = Math.min(
-                gameCanvas.width / (gridSize + 2),
-                gameCanvas.height / (gridSize + 2)
-            );
+            currentPieceGroup = new THREE.Group();
+            const material = new THREE.MeshPhongMaterial({
+                color: PIECE_COLORS[pieceType],
+                shininess: 100
+            });
             
-            const boardWidth = 10 * cellSize;
-            const boardHeight = 20 * cellSize;
-            const boardX = (gameCanvas.width - boardWidth) / 2;
-            const boardY = (gameCanvas.height - boardHeight) / 2 + 50;
-            
-            // Draw board background
-            ctx.fillStyle = 'rgba(25, 25, 45, 0.7)';
-            ctx.fillRect(boardX - 10, boardY - 10, boardWidth + 20, boardHeight + 20);
-            
-            // Draw cells
-            for (let y = 0; y < 20; y++) {
-                for (let x = 0; x < 10; x++) {
-                    if (gameBoard[y][x]) {
-                        drawCell(x, y, gameBoard[y][x] - 1, ctx, boardX, boardY, cellSize);
+            PIECE_SHAPES[pieceType].forEach((row, y) => {
+                row.forEach((value, x) => {
+                    if (value) {
+                        const geometry = new THREE.BoxGeometry(0.9, 0.9, 0.9);
+                        const cube = new THREE.Mesh(geometry, material);
+                        cube.position.set(x - 1, 0, y - 1);
+                        currentPieceGroup.add(cube);
                     }
-                }
-            }
+                });
+            });
             
-            // Draw current piece
-            if (currentPiece.shape) {
-                for (let y = 0; y < currentPiece.shape.length; y++) {
-                    for (let x = 0; x < currentPiece.shape[y].length; x++) {
-                        if (currentPiece.shape[y][x]) {
-                            const px = currentPiece.x + x;
-                            const py = currentPiece.y + y;
-                            
-                            if (py >= 0) {
-                                drawCell(px, py, currentPiece.type, ctx, boardX, boardY, cellSize);
-                            }
-                        }
-                    }
-                }
-            }
+            // Position above the board
+            piecePosition = {x: 0, y: 10, z: 0};
+            currentPieceGroup.position.set(piecePosition.x, piecePosition.y, piecePosition.z);
+            scene.add(currentPieceGroup);
             
-            // Draw grid lines
-            ctx.strokeStyle = 'rgba(100, 150, 255, 0.3)';
-            ctx.lineWidth = 1;
-            
-            for (let x = 0; x <= 10; x++) {
-                ctx.beginPath();
-                ctx.moveTo(boardX + x * cellSize, boardY);
-                ctx.lineTo(boardX + x * cellSize, boardY + boardHeight);
-                ctx.stroke();
-            }
-            
-            for (let y = 0; y <= 20; y++) {
-                ctx.beginPath();
-                ctx.moveTo(boardX, boardY + y * cellSize);
-                ctx.lineTo(boardX + boardWidth, boardY + y * cellSize);
-                ctx.stroke();
-            }
-        }
-        
-        // Draw a single cell
-        function drawCell(x, y, type, context, offsetX, offsetY, size) {
-            const color = PIECE_COLORS[type];
-            const padding = 2;
-            
-            context.fillStyle = color;
-            context.fillRect(
-                offsetX + x * size + padding,
-                offsetY + y * size + padding,
-                size - padding * 2,
-                size - padding * 2
-            );
-            
-            // Add 3D effect
-            context.fillStyle = 'rgba(255, 255, 255, 0.3)';
-            context.fillRect(
-                offsetX + x * size + padding,
-                offsetY + y * size + padding,
-                size - padding * 2,
-                4
-            );
-            
-            context.fillStyle = 'rgba(0, 0, 0, 0.2)';
-            context.fillRect(
-                offsetX + x * size + padding + size - padding * 2 - 4,
-                offsetY + y * size + padding,
-                4,
-                size - padding * 2
-            );
-            
-            context.fillStyle = 'rgba(255, 255, 255, 0.7)';
-            context.fillRect(
-                offsetX + x * size + padding,
-                offsetY + y * size + padding,
-                4,
-                4
-            );
+            currentPiece = {
+                type: pieceType,
+                shape: PIECE_SHAPES[pieceType],
+                rotation: 0
+            };
         }
         
         // Move the current piece
         function movePiece(direction) {
-            if (!currentPiece.shape || !gameActive) return;
+            if (!currentPieceGroup || !gameActive) return;
             
             if (direction === 'left') {
-                if (currentPiece.x > 0) currentPiece.x--;
+                piecePosition.x -= 1;
             } else if (direction === 'right') {
-                if (currentPiece.x < 10 - currentPiece.shape[0].length) currentPiece.x++;
+                piecePosition.x += 1;
             } else if (direction === 'rotate') {
-                // Rotate the piece
-                const rotated = [];
-                for (let x = 0; x < currentPiece.shape[0].length; x++) {
-                    const newRow = [];
-                    for (let y = currentPiece.shape.length - 1; y >= 0; y--) {
-                        newRow.push(currentPiece.shape[y][x]);
-                    }
-                    rotated.push(newRow);
-                }
-                
-                if (currentPiece.x + rotated.length <= 10) {
-                    currentPiece.shape = rotated;
-                }
+                currentPieceGroup.rotation.y += Math.PI / 2;
             }
+            
+            currentPieceGroup.position.x = piecePosition.x;
         }
         
         // Drop the piece faster
         function dropPiece() {
-            gameSpeed = 100;
+            gameSpeed = 200;
             setTimeout(() => {
                 gameSpeed = 1000 - (level * 50);
             }, 500);
         }
-
+        
         // Initialize next piece preview
         function initNextPiecePreview() {
             nextPieceCtx.clearRect(0, 0, nextPieceCanvas.width, nextPieceCanvas.height);
@@ -575,7 +606,7 @@
             shape.forEach((row, y) => {
                 row.forEach((value, x) => {
                     if (value) {
-                        nextPieceCtx.fillStyle = color;
+                        nextPieceCtx.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
                         nextPieceCtx.fillRect(
                             x * 15 + (nextPieceCanvas.width - row.length * 15) / 2,
                             y * 15 + 10,
@@ -603,86 +634,11 @@
                 });
             });
         }
-
-        // Request camera permission
-        async function requestCameraPermission() {
-            try {
-                // Request camera access
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { 
-                        facingMode: 'environment',
-                        width: { ideal: 1920 },
-                        height: { ideal: 1080 }
-                    } 
-                });
-                
-                // Show camera feed
-                cameraFeed.srcObject = stream;
-                cameraActive = true;
-                
-                // Hide welcome screen and show scanning UI
-                welcomeScreen.style.display = 'none';
-                scanningScreen.style.display = 'flex';
-                scanningActive = true;
-                
-                // Start scanning visualization
-                startScanningAnimation();
-                
-                // After scanning, start the game
-                setTimeout(() => {
-                    if (scanningActive) {
-                        scanningScreen.style.display = 'none';
-                        startGame();
-                    }
-                }, 5000);
-                
-            } catch (error) {
-                welcomeScreen.innerHTML = `
-                    <div class="logo" style="background: #ff5555;">
-                        <i class="fas fa-exclamation"></i>
-                    </div>
-                    <h2>Camera Access Required</h2>
-                    <p class="subtitle">Could not access camera: ${error.message}</p>
-                    <p class="subtitle">Please check your browser settings and try again.</p>
-                    <button id="retry-btn" class="btn" style="background: #ff5555;">
-                        <i class="fas fa-redo"></i> TRY AGAIN
-                    </button>
-                `;
-                
-                document.getElementById('retry-btn').addEventListener('click', () => {
-                    location.reload();
-                });
-            }
-        }
-
-        // Start scanning animation
-        function startScanningAnimation() {
-            scanProgress = 0;
-            clearInterval(scanInterval);
-            
-            scanInterval = setInterval(() => {
-                if (!scanningActive) return;
-                
-                scanProgress += 10;
-                document.querySelector('.scan-text').textContent = `Scanning surfaces... ${scanProgress}%`;
-                
-                if (scanProgress >= 100) {
-                    clearInterval(scanInterval);
-                }
-            }, 400);
-        }
-
+        
         // Start the game
         function startGame() {
             gameActive = true;
-            arStatus.style.display = 'block';
-            touchOverlay.style.display = 'grid';
-            
-            // Create the first piece
             createNewPiece();
-            
-            // Initial score display
-            updateScore();
             
             // Set up touch controls
             setupTouchControls();
@@ -697,149 +653,37 @@
             
             const currentTime = Date.now();
             if (currentTime - lastMoveTime > gameSpeed) {
-                movePieceDown();
+                piecePosition.y -= 1;
+                if (currentPieceGroup) {
+                    currentPieceGroup.position.y = piecePosition.y;
+                }
+                
+                // Check if piece reached the bottom
+                if (piecePosition.y <= 0) {
+                    // Place the piece and create new one
+                    piecePosition.y = 10;
+                    createNewPiece();
+                    
+                    // Update score
+                    score += 10;
+                    scoreElement.textContent = score;
+                    
+                    // Increase level
+                    if (score % 100 === 0) {
+                        level++;
+                        levelElement.textContent = level;
+                    }
+                }
+                
                 lastMoveTime = currentTime;
             }
         }
         
-        // Move piece down
-        function movePieceDown() {
-            if (!currentPiece.shape) return;
-            
-            currentPiece.y++;
-            
-            // Check collision
-            if (checkCollision()) {
-                // Revert position
-                currentPiece.y--;
-                
-                // Lock piece in place
-                lockPiece();
-                
-                // Check for line clears
-                clearLines();
-                
-                // Create new piece
-                createNewPiece();
-                piecePosition.y = 0;
-                currentPiece.x = piecePosition.x;
-                currentPiece.y = piecePosition.y;
-                
-                // Check game over
-                if (checkCollision()) {
-                    gameActive = false;
-                    arStatus.style.display = 'block';
-                    arStatus.innerHTML = '<i class="fas fa-times-circle"></i> Game Over!';
-                    arStatus.style.color = '#ff5555';
-                    
-                    setTimeout(() => {
-                        arStatus.style.display = 'none';
-                        welcomeScreen.style.display = 'flex';
-                    }, 3000);
-                }
-            }
-        }
-        
-        // Check for collision
-        function checkCollision() {
-            for (let y = 0; y < currentPiece.shape.length; y++) {
-                for (let x = 0; x < currentPiece.shape[y].length; x++) {
-                    if (currentPiece.shape[y][x]) {
-                        const px = currentPiece.x + x;
-                        const py = currentPiece.y + y;
-                        
-                        if (
-                            py >= 20 || 
-                            px < 0 || 
-                            px >= 10 || 
-                            (py >= 0 && gameBoard[py][px])
-                        ) {
-                            return true;
-                        }
-                    }
-                }
-            }
-            return false;
-        }
-        
-        // Lock piece in place
-        function lockPiece() {
-            for (let y = 0; y < currentPiece.shape.length; y++) {
-                for (let x = 0; x < currentPiece.shape[y].length; x++) {
-                    if (currentPiece.shape[y][x]) {
-                        const px = currentPiece.x + x;
-                        const py = currentPiece.y + y;
-                        
-                        if (py >= 0) {
-                            gameBoard[py][px] = currentPiece.type + 1;
-                        }
-                    }
-                }
-            }
-        }
-        
-        // Clear completed lines
-        function clearLines() {
-            let linesCleared = 0;
-            
-            for (let y = 19; y >= 0; y--) {
-                let lineComplete = true;
-                
-                for (let x = 0; x < 10; x++) {
-                    if (!gameBoard[y][x]) {
-                        lineComplete = false;
-                        break;
-                    }
-                }
-                
-                if (lineComplete) {
-                    linesCleared++;
-                    
-                    // Move all lines above down
-                    for (let i = y; i > 0; i--) {
-                        gameBoard[i] = [...gameBoard[i-1]];
-                    }
-                    
-                    // Clear top line
-                    gameBoard[0] = Array(10).fill(0);
-                    
-                    // Check the same line again
-                    y++;
-                }
-            }
-            
-            if (linesCleared > 0) {
-                // Update score
-                score += [100, 300, 500, 800][linesCleared - 1] * level;
-                updateScore();
-                
-                // Show line clear effect
-                arStatus.style.display = 'block';
-                arStatus.innerHTML = `<i class="fas fa-star"></i> ${linesCleared} LINE${linesCleared > 1 ? 'S' : ''} CLEARED!`;
-                arStatus.style.color = '#00ffaa';
-                
-                setTimeout(() => {
-                    arStatus.style.display = 'none';
-                }, 2000);
-            }
-        }
-        
-        // Update score display
-        function updateScore() {
-            scoreElement.textContent = score;
-            
-            if (score > 0 && score % 1000 === 0) {
-                level++;
-                levelElement.textContent = level;
-                gameSpeed = Math.max(200, 1000 - (level * 50));
-            }
-        }
-        
-        // Game loop
-        function gameLoop() {
+        // Animation loop
+        function animate() {
             update();
-            drawGame();
-            requestAnimationFrame(gameLoop);
+            renderer.render(scene, camera);
+            requestAnimationFrame(animate);
         }
         
         // Set up touch controls
@@ -886,12 +730,13 @@
         }
 
         // Initialize the game when page loads
-        window.addEventListener('load', initGame);
+        window.addEventListener('load', init);
         
         // Handle window resize
         window.addEventListener('resize', () => {
-            gameCanvas.width = window.innerWidth;
-            gameCanvas.height = window.innerHeight;
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
         });
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
