@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AR 3D Tetris</title>
+    <title>AR Tetris Pro</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/XRController.js"></script>
     <style>
@@ -18,12 +18,12 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background: #0a0a16;
+            background: linear-gradient(135deg, #0a0a16, #1a1a2e);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             color: white;
         }
 
-        #start-container {
+        #start-screen {
             position: fixed;
             top: 0;
             left: 0;
@@ -33,7 +33,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(135deg, #0a0a16, #1a1a2e);
+            background: rgba(10, 10, 20, 0.95);
             z-index: 100;
             text-align: center;
             padding: 20px;
@@ -293,7 +293,7 @@
     </style>
 </head>
 <body>
-    <div id="start-container">
+    <div id="start-screen">
         <div class="logo">
             <div style="font-size: 40px;">AR</div>
         </div>
@@ -364,7 +364,7 @@
         ];
 
         // DOM Elements
-        const startContainer = document.getElementById('start-container');
+        const startScreen = document.getElementById('start-screen');
         const arContainer = document.getElementById('ar-container');
         const scanningUI = document.getElementById('scanning-ui');
         const startBtn = document.getElementById('start-btn');
@@ -440,7 +440,7 @@
         // Start AR experience
         async function startARExperience() {
             // Hide start screen and show AR container
-            startContainer.style.display = 'none';
+            startScreen.style.display = 'none';
             arContainer.style.display = 'block';
             scanningUI.style.display = 'flex';
             
@@ -480,7 +480,7 @@
         // Cancel scanning
         function cancelScanning() {
             scanningUI.style.display = 'none';
-            startContainer.style.display = 'flex';
+            startScreen.style.display = 'flex';
             clearInterval(scanInterval);
         }
         
